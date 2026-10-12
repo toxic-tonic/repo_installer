@@ -10,7 +10,7 @@ Gilt für jede Session, ohne Ausnahme:
 2. **Versionsschema:** `X.Y.Z` (eigenes Projekt, kein Upstream), fortlaufend ab dem letzten Release hochzählen. Startversion `0.1.0`.
    - Die Version steht identisch in `custom_components/repo_installer/manifest.json` (`version`) und im Release-Titel.
    - Git-Tag: `v<version>`, z. B. `v0.1.1`.
-3. **Assets:** `./deploy.sh zip` baut deterministisch (`scripts/build_zip.py`) zwei **inhaltsgleiche** ZIPs mit gleicher SHA-256: `repo_installer-<version>-<kurzhash>.zip` (vom Installer gewählt, Version im Namen) und `repo_installer.zip` (fester Name, stabiler Link `…/releases/latest/download/repo_installer.zip`). Beide werden hochgeladen, sonst kein weiteres ZIP. Nach dem Entpacken in `/config/custom_components/` entsteht direkt `repo_installer/manifest.json`.
+3. **Assets:** `./deploy.sh zip` baut deterministisch (`scripts/build_zip.py`) zwei **inhaltsgleiche** ZIPs mit gleicher SHA-256: `repo_installer-<version>-<kurzhash>.zip` (vom Installer gewählt, Version im Namen) und `repo_installer.zip` (fester Name, stabiler Link nur auf GitHub: `https://github.com/toxic-tonic/repo_installer/releases/latest/download/repo_installer.zip`; Forgejo kennt `latest/download` nicht, 404). Beide werden hochgeladen, sonst kein weiteres ZIP. Nach dem Entpacken in `/config/custom_components/` entsteht direkt `repo_installer/manifest.json`.
 4. **Release-Beschreibung** (deutsch, kurz):
    - Änderungen gegenüber dem vorherigen Release
    - Commit-Hash
