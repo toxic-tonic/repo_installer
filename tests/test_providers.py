@@ -265,3 +265,56 @@ async def test_gitlab_project_upload_link_accepted(hass, aioclient_mock):
     rel = gitlab_release_json("2.0.0", "a" * 64, link_url=f"{GL_BASE}/{GL_PATH}/uploads/abc/demo.zip")
     aioclient_mock.get(f"{GL_API}/releases", json=[rel], params={"per_page": "20"})
     assert (await gitlab(hass).async_get_latest_release(False)).problem is None
+
+
+# --- ZIP selection with several assets (stable HACS name + versioned name) ----------
+
+def two_asset_release(version: str, sha256: str, fixed_first: bool = True) -> dict:
+    rel = release_json(version, sha256)
+    tag = rel["tag_name"]
+    fixed = {"name": "demo_target.zip",
+             "browser_download_url": f"{BASE}/{REPO}/releases/download/{tag}/demo_target.zip"}
+    rel["assets"] = [fixed, *rel["assets"]] if fixed_first else [*rel["assets"], fixed]
+    return rel
+
+
+@pytest.mark.parametrize("fixed_first", [True, False])
+async def test_two_zips_versioned_name_wins(hass, aioclient_mock, fixed_first):
+    zip_bytes = make_zip("2024.5.9+ultra2")
+    rel = two_asset_release("2024.5.9+ultra2", sha(zip_bytes), fixed_first)
+    aioclient_mock.get(f"{API}/releases/latest", json=rel)
+    release = await gitea(hass).async_get_latest_release(False)
+    assert release.problem is None
+    assert release.asset_name == "demo_target-2024.5.9+ultra2-abc1234.zip"
+
+
+async def test_two_unversioned_zips_rejected(hass, aioclient_mock):
+    rel = release_json("1.0.1", "a" * 64)
+    rel["assets"] = [
+        {"name": n, "browser_download_url": f"{BASE}/{REPO}/releases/download/v1.0.1/{n}"}
+        for n in ("a.zip", "b.zip")
+    ]
+    aioclient_mock.get(f"{API}/releases/latest", json=rel)
+    release = await gitea(hass).async_get_latest_release(False)
+    assert release.problem == "Release has 2 ZIP assets and none is selectable (versioned name or SHA-256 digest)"
+    assert release.asset_url is None
+
+
+async def test_github_two_zips_by_digest(hass, aioclient_mock):
+    """No versioned name: GitHub's per-asset digest decides."""
+    rel = github_release_json("1.2.0", "c" * 64)
+    rel["assets"] = [
+        {"name": "one.zip", "url": f"{GH_API}/releases/assets/1", "digest": "sha256:" + "b" * 64},
+        {"name": "two.zip", "url": f"{GH_API}/releases/assets/2", "digest": "sha256:" + "C" * 64},
+    ]
+    aioclient_mock.get(f"{GH_API}/releases/latest", json=rel)
+    release = await github(hass).async_get_latest_release(False)
+    assert release.problem is None
+    assert release.asset_name == "two.zip"
+
+
+async def test_no_zip_asset(hass, aioclient_mock):
+    rel = release_json("1.0.1", "a" * 64)
+    rel["assets"] = []
+    aioclient_mock.get(f"{API}/releases/latest", json=rel)
+    assert (await gitea(hass).async_get_latest_release(False)).problem == "Release has no ZIP asset"

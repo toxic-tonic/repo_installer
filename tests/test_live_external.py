@@ -22,6 +22,7 @@ import pytest_socket
 
 from custom_components.repo_installer.actions import async_install_release
 from custom_components.repo_installer.providers import RepoError, async_detect, parse_repo_url
+from custom_components.repo_installer.providers.base import ZipAsset
 from custom_components.repo_installer.providers.github import GITHUB_ASSET_HOSTS
 from custom_components.repo_installer.providers.gitlab import GITLAB_COM_ASSET_HOSTS
 
@@ -95,7 +96,7 @@ async def test_gitlab_glab(hass, tmp_path, traced_session):
 
     release = await provider.async_get_latest_release(False)
     assert release.version[0].isdigit()
-    assert "ZIP assets, expected exactly 1" in release.problem  # glab ships 3 Windows ZIPs
+    assert "3 ZIP assets and none is selectable" in release.problem  # glab: 3 Windows ZIPs
     await assert_rejected_without_remains(hass, tmp_path, provider, release, "glab")
 
     # Same release reduced to one ZIP link: now the missing SHA-256 is the reason
@@ -106,7 +107,7 @@ async def test_gitlab_glab(hass, tmp_path, traced_session):
     single = provider._build_release(
         tag=release.tag, name=data.get("name"), body=data.get("description"),
         html_url=release.html_url, prerelease=False,
-        zips=[(link["name"], link["direct_asset_url"])],
+        zips=[ZipAsset(link["name"], link["direct_asset_url"])],
     )
     assert single.problem == "Release notes contain 0 SHA-256 values, expected exactly 1"
     assert provider.is_own_asset_url(link["direct_asset_url"])

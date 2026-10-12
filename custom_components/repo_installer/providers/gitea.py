@@ -7,7 +7,7 @@ from typing import Any
 from yarl import URL
 
 from ..const import PROVIDER_GITEA
-from .base import Provider, Release, RepoNotFoundError, SchemaMismatchError, origin
+from .base import Provider, Release, RepoNotFoundError, SchemaMismatchError, ZipAsset, origin
 
 
 class GiteaProvider(Provider):
@@ -53,7 +53,7 @@ class GiteaProvider(Provider):
             html_url=data.get("html_url"),
             prerelease=bool(data.get("prerelease")),
             zips=[
-                (a.get("name", ""), a.get("browser_download_url", ""))
+                ZipAsset(a.get("name", ""), a.get("browser_download_url", ""))
                 for a in data.get("assets") or []
                 if a.get("name", "").lower().endswith(".zip")
             ],

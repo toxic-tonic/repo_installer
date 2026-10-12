@@ -1,0 +1,36 @@
+name: Feature request
+description: Suggest an improvement
+labels: [enhancement]
+body:
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+      placeholder: "2026.2.3"
+    validations:
+      required: true
+  - type: input
+    id: installer_version
+    attributes:
+      label: Repo Installer version
+      placeholder: "0.2.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Git provider (source system) this is about
+      options:
+        - GitHub
+        - GitLab
+        - Forgejo
+        - Gitea
+        - Not provider specific
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like, and why?
+    validations:
+      required: true

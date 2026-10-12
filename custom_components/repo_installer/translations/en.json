@@ -12,7 +12,7 @@
           "provider": "Git provider"
         },
         "data_description": {
-          "url": "Full URL incl. owner/repository, e.g. http://172.16.1.36:3000/toxic/linknlink-local or https://github.com/owner/repo",
+          "url": "Full URL incl. owner/repository, e.g. {example_self_hosted} or {example_github}",
           "target_domain": "Folder name under custom_components, e.g. linknlink",
           "token": "Only needed for private repositories (GitHub: also avoids the rate limit). Stored only in this entry.",
           "provider": "Automatic detection is recommended"

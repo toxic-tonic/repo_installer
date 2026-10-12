@@ -1,0 +1,52 @@
+name: Bug report
+description: Something does not work as described
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Development happens on a self-hosted instance; GitHub is a mirror.
+        Issues are welcome. Security problems: see SECURITY.md, not here.
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+      placeholder: "2026.2.3"
+    validations:
+      required: true
+  - type: input
+    id: installer_version
+    attributes:
+      label: Repo Installer version
+      placeholder: "0.2.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Git provider (source system)
+      options:
+        - GitHub
+        - GitLab (gitlab.com)
+        - GitLab (self-hosted)
+        - Forgejo
+        - Gitea
+        - Not detected / unknown
+    validations:
+      required: true
+  - type: input
+    id: repository
+    attributes:
+      label: Repository URL of the integration you install (if public)
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log output
+      description: Settings → System → Logs, filter "repo_installer". Remove tokens before posting.
+      render: text

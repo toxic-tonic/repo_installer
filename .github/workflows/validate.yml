@@ -1,0 +1,36 @@
+# HACS and hassfest validation. Runs on every push and pull request (the
+# Forgejo push mirror counts as push) and weekly, so upstream rule changes
+# show up even without commits. Never writes to the repository.
+name: Validate
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  hacs:
+    name: HACS
+    runs-on: ubuntu-latest
+    steps:
+      # hacs/action main, 2026-06-08 (latest release 22.5.0 is from 2022)
+      - uses: hacs/action@1ebf01c408f29afcb6406bd431bc98fd8cbb15aa
+        with:
+          category: integration
+
+  hassfest:
+    name: hassfest
+    runs-on: ubuntu-latest
+    steps:
+      # actions/checkout v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      # home-assistant/actions master, 2026-09-27 (only release 1.0.0 is from 2020)
+      - uses: home-assistant/actions/hassfest@06749dd8c0b54f350bc69c8752456cee498808a3

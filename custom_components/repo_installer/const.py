@@ -36,7 +36,7 @@ STAGING_DIR = ".repo_installer_staging"
 
 # Installed version when custom_components/<domain> does not exist: empty
 # keeps the update entity "on" (first install offered); the translated hint
-# comes from entity.update.<TRANSLATION_KEY> in strings.json.
+# comes from entity.update.integration in strings.json.
 NOT_INSTALLED = ""
 TRANSLATION_KEY = "integration"
 

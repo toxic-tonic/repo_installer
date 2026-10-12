@@ -12,7 +12,7 @@
           "provider": "Quellsystem"
         },
         "data_description": {
-          "url": "Vollständige URL inkl. Owner/Repository, z. B. http://172.16.1.36:3000/toxic/linknlink-local oder https://github.com/owner/repo",
+          "url": "Vollständige URL inkl. Owner/Repository, z. B. {example_self_hosted} oder {example_github}",
           "target_domain": "Ordnername unter custom_components, z. B. linknlink",
           "token": "Nur für private Repositorys nötig (GitHub: vermeidet zusätzlich das Rate-Limit). Wird nur in diesem Eintrag gespeichert.",
           "provider": "Empfohlen: automatisch erkennen"

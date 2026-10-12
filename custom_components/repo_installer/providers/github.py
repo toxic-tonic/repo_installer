@@ -16,6 +16,7 @@ from .base import (
     Release,
     RepoNotFoundError,
     SchemaMismatchError,
+    ZipAsset,
     origin,
 )
 
@@ -31,6 +32,13 @@ GITHUB_ASSET_HOSTS = (
     "release-assets.githubusercontent.com",
     "github-releases.githubusercontent.com",
 )
+
+
+def _digest(value: str | None) -> str | None:
+    """GitHub asset digest "sha256:<hex>" → hex."""
+    if value and value.lower().startswith("sha256:"):
+        return value[7:].lower()
+    return None
 
 
 class GitHubProvider(Provider):
@@ -119,7 +127,7 @@ class GitHubProvider(Provider):
             prerelease=bool(data.get("prerelease")),
             # The API URL (not browser_download_url) works for private repos too
             zips=[
-                (a.get("name", ""), a.get("url", ""))
+                ZipAsset(a.get("name", ""), a.get("url", ""), _digest(a.get("digest")))
                 for a in data.get("assets") or []
                 if a.get("name", "").lower().endswith(".zip")
             ],

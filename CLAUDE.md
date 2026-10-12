@@ -10,7 +10,7 @@ Gilt für jede Session, ohne Ausnahme:
 2. **Versionsschema:** `X.Y.Z` (eigenes Projekt, kein Upstream), fortlaufend ab dem letzten Release hochzählen. Startversion `0.1.0`.
    - Die Version steht identisch in `custom_components/repo_installer/manifest.json` (`version`) und im Release-Titel.
    - Git-Tag: `v<version>`, z. B. `v0.1.1`.
-3. **Asset:** ZIP per `./deploy.sh zip`, Dateiname `repo_installer-<version>-<kurzhash>.zip`. Nach dem Entpacken in `/config/custom_components/` entsteht direkt `repo_installer/manifest.json`. Genau ein ZIP-Asset pro Release.
+3. **Assets:** `./deploy.sh zip` baut deterministisch (`scripts/build_zip.py`) zwei **inhaltsgleiche** ZIPs mit gleicher SHA-256: `repo_installer-<version>-<kurzhash>.zip` (vom Installer gewählt, Version im Namen) und `repo_installer.zip` (fester Name, stabiler Link `…/releases/latest/download/repo_installer.zip`). Beide werden hochgeladen, sonst kein weiteres ZIP. Nach dem Entpacken in `/config/custom_components/` entsteht direkt `repo_installer/manifest.json`.
 4. **Release-Beschreibung** (deutsch, kurz):
    - Änderungen gegenüber dem vorherigen Release
    - Commit-Hash
@@ -19,20 +19,31 @@ Gilt für jede Session, ohne Ausnahme:
    - Feste Einspielanleitung: ZIP herunterladen, in Studio Code Server nach `/config/custom_components/` hochladen und entpacken (vorhandenen Ordner `repo_installer` vorher ersetzen), HA neu starten. Ab installierter 0.1.0 alternativ: Einstellungen → Updates (Eintrag für `toxic/repo_installer` mit Domain `repo_installer`).
 5. **Vor dem Release müssen die HA-Tests grün sein.** Bei roten Tests gibt es kein Release, stattdessen an Tobias melden.
 6. **Releases werden nie gelöscht oder überschrieben.** Ein fehlerhaftes Release wird durch ein neues mit höherer Version ersetzt.
-7. **Rückmeldung an Tobias nach jedem Release:** nur Version, Kurzliste der Änderungen und die direkte Download-URL des Assets.
-8. **`dist/` enthält lokal nur das ZIP des aktuellen Releases** (`dist/` ist in `.gitignore`).
+7. **Rückmeldung an Tobias nach jedem Release:** nur Version, Kurzliste der Änderungen und die direkte Download-URL des versionierten Assets.
+8. **`dist/` enthält lokal nur die ZIPs des aktuellen Releases** (`dist/` ist in `.gitignore`, `deploy.sh zip` räumt alte ZIPs weg).
+9. **`CHANGELOG.md` vor jedem Release pflegen** (englisch, Keep a Changelog): Abschnitt `## [<version>] - <JJJJ-MM-TT>` mit Added/Changed/Fixed. Der Abschnitt ist die Release-Beschreibung auf GitHub; `scripts/release_meta.py check v<version>` muss grün sein, sonst bricht der GitHub-Workflow ab.
+10. **GitHub ist nur Spiegel** (sobald eingerichtet, siehe `docs/github-mirror.md`): nie direkt auf GitHub committen oder releasen. Der Workflow baut das GitHub-Release aus dem gespiegelten Tag; danach SHA-256 Forgejo gegen GitHub abgleichen – sie müssen identisch sein.
 
 ## Release-Format, das der Installer von Fremd-Repos erwartet
 
 Vorlage für jede eigene Integration, die über den Repo Installer verteilt wird (Forgejo, Gitea, GitHub oder GitLab):
 
 - **Tag** mit der Version, z. B. `v1.2.3`. **Release-Titel** = Version (darf `+` enthalten, z. B. `2024.5.9+ultra1`; Tags können das oft nicht). Der Titel hat Vorrang, wenn er mit einer Ziffer (oder `v` + Ziffer) beginnt, sonst gilt der Tag ohne führendes `v`.
-- **Genau ein `.zip`-Asset** im Release:
+- **Ein `.zip`-Asset** im Release (empfohlen). Bei mehreren ZIPs gilt: das einzige mit der Version im Namen, sonst das einzige, dessen Anbieter-Digest (GitHub `digest`) zur SHA-256 der Beschreibung passt, sonst Ablehnung.
   - Forgejo/Gitea/GitHub: hochgeladene Datei.
   - GitLab: Release-Link (`assets.links`) auf eine Datei in *diesem* Projekt (Generic Package Registry `…/api/v4/projects/<id|pfad>/packages/generic/…` oder Projekt-Upload). Externe Links werden abgelehnt.
 - **Beschreibung** enthält genau einen SHA-256 des ZIPs, Konvention: `SHA-256: <64 Hex-Zeichen>`.
 - **ZIP-Inhalt:** genau ein Ordner `<domain>/` mit `<domain>/manifest.json`; `domain` und `version` im Manifest passen zur Ziel-Domain bzw. zur Release-Version. Keine Symlinks, keine `..`-Pfade, max. 50 MB gepackt / 200 MB entpackt.
 - **Pre-Releases:** Forgejo/Gitea/GitHub über das Pre-Release-Flag. GitLab kennt kein Flag: dort gilt ein Release als Pre-Release, wenn die Version einen Pre-Release-Teil hat (`1.0.0-rc.1`, `1.0.0b1`).
+
+## Store-Vorbereitung (HACS) und Platzhalter
+
+- `hacs.json`: ohne `zip_release`, mit `hide_default_branch`. HACS installiert damit den getaggten Stand von `custom_components/repo_installer/`. Grund: HACS entpackt ein `zip_release`-Asset direkt nach `custom_components/<domain>/` (Dateien im ZIP-Wurzelverzeichnis, so auch `hacs.zip`), der Installer verlangt `<domain>/manifest.json` – beides in einem inhaltsgleichen Asset geht nicht.
+- Brand-Assets gehören nach `custom_components/repo_installer/brand/` (HACS-Prüfung und HA ab 2026.3), nicht ins Repo-Root.
+- Platzhalter `GITHUB_USER`, `SECURITY_CONTACT`, `COPYRIGHT_HOLDER` (im Text in spitzen Klammern) sind zentral in `scripts/placeholders.py` definiert: `list` zeigt alle Fundstellen, `apply NAME=wert …` ersetzt sie.
+- Lizenz liegt als Entwurf in `docs/license-drafts/`, erst nach Entscheidung als `LICENSE` ins Root.
+- Store-Antrag: `docs/hacs-default-submission.md`. GitHub-Workflows: `.github/workflows/` (validate: HACS + hassfest; release: Tag `v*`).
+- hassfest lokal (ohne Docker): HA-Core-Tag passend zum venv sparse auschecken (nur `script/`), dann im Checkout `PATH=<dir mit ruff>:$PATH /home/dev/linknlink-local/.venv-ha/bin/python -m script.hassfest --action validate --integration-path <kopie>/custom_components/repo_installer` (Kopie ohne `__pycache__`).
 
 ## Arbeitsumgebung (Host `dev`)
 

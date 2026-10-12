@@ -79,6 +79,36 @@ class Release:
     problem: str | None = None  # set when the release cannot be installed
 
 
+@dataclass(frozen=True)
+class ZipAsset:
+    """A ZIP asset as listed by the provider."""
+
+    name: str
+    url: str
+    sha256: str | None = None  # provider-side digest, if the API offers one (GitHub)
+
+
+def select_zip(zips: list[ZipAsset], version: str, sha256: str | None) -> ZipAsset | None:
+    """Pick the release ZIP.
+
+    1. exactly one ZIP: that one
+    2. else the only ZIP whose name contains the version (versioned name wins
+       over a fixed name such as repo_installer.zip for HACS)
+    3. else the only ZIP whose provider digest matches the SHA-256 of the notes
+    """
+    if len(zips) == 1:
+        return zips[0]
+    variants = {version, version.replace("+", "%2B")}
+    versioned = [z for z in zips if any(v in z.name for v in variants)]
+    if len(versioned) == 1:
+        return versioned[0]
+    if sha256:
+        matching = [z for z in zips if z.sha256 and z.sha256.lower() == sha256]
+        if len(matching) == 1:
+            return matching[0]
+    return None
+
+
 def origin(url: URL) -> Origin:
     return (url.scheme, (url.host or "").lower(), url.port)
 
@@ -203,30 +233,36 @@ class Provider:
         body: str | None,
         html_url: str | None,
         prerelease: bool,
-        zips: list[tuple[str, str]],
+        zips: list[ZipAsset],
     ) -> Release:
-        """Common checks: exactly one ZIP from this repo, exactly one SHA-256."""
+        """Common checks: one selectable ZIP from this repo, exactly one SHA-256."""
         body = body or ""
         problem = None
-        asset = zips[0] if len(zips) == 1 else None
-        if asset is None:
-            problem = f"Release has {len(zips)} ZIP assets, expected exactly 1"
-        elif not self.is_own_asset_url(asset[1]):
-            problem = "Asset URL does not belong to the configured repository"
-
+        version = release_version(name, tag)
         hashes = {h.lower() for h in SHA256_RE.findall(body)}
         sha256 = next(iter(hashes)) if len(hashes) == 1 else None
+
+        asset = select_zip(zips, version, sha256)
+        if not zips:
+            problem = "Release has no ZIP asset"
+        elif asset is None:
+            problem = (
+                f"Release has {len(zips)} ZIP assets and none is selectable "
+                "(versioned name or SHA-256 digest)"
+            )
+        elif not self.is_own_asset_url(asset.url):
+            problem = "Asset URL does not belong to the configured repository"
         if sha256 is None and problem is None:
             problem = f"Release notes contain {len(hashes)} SHA-256 values, expected exactly 1"
 
         return Release(
-            version=release_version(name, tag),
+            version=version,
             tag=tag,
             body=body,
             html_url=html_url,
             prerelease=prerelease,
-            asset_name=asset[0] if asset else None,
-            asset_url=asset[1] if asset else None,
+            asset_name=asset.name if asset else None,
+            asset_url=asset.url if asset else None,
             sha256=sha256,
             problem=problem,
         )

@@ -61,6 +61,12 @@ _LOGGER = logging.getLogger(__name__)
 
 CONF_REMOVE_TOKEN = "remove_token"
 
+# hassfest forbids URLs inside translations
+URL_EXAMPLES = {
+    "example_self_hosted": "http://192.168.1.10:3000/owner/repo",
+    "example_github": "https://github.com/owner/repo",
+}
+
 TOKEN_SELECTOR = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
 PROVIDER_SELECTOR_OPTIONS = [PROVIDER_AUTO, PROVIDER_GITHUB, PROVIDER_GITLAB, PROVIDER_GITEA]
 
@@ -148,6 +154,7 @@ class RepoInstallerConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=self.add_suggested_values_to_schema(USER_SCHEMA, user_input or {}),
             errors=errors,
+            description_placeholders=URL_EXAMPLES,
         )
 
     async def _async_fetch_release(self) -> None:

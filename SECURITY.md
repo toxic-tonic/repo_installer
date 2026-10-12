@@ -1,0 +1,25 @@
+# Security policy
+
+## Supported versions
+
+Only the latest release receives fixes. Please update before reporting.
+
+| Version | Supported |
+| ------- | --------- |
+| latest `0.x` release | yes |
+| older releases | no |
+
+## Reporting a vulnerability
+
+Please **do not open a public issue** for security problems. Report them
+privately by e-mail to `<SECURITY_CONTACT>` or via GitHub's
+"Report a vulnerability" button (private security advisory) on
+`https://github.com/<GITHUB_USER>/repo_installer/security`.
+
+Include the installer version, the Home Assistant version, the Git
+provider involved and steps to reproduce. You will get an answer as time
+permits; this is a community project without a support commitment (see
+the README, "Scope and expectations").
+
+Areas that matter most: SHA-256 verification, host binding of downloads,
+ZIP validation (paths, symlinks, size) and token handling.
