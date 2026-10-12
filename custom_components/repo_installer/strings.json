@@ -1,0 +1,71 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Git repository",
+        "description": "Install and update a custom integration from the release ZIPs of a GitHub, GitLab, Forgejo or Gitea repository.",
+        "data": {
+          "url": "Repository URL",
+          "target_domain": "Integration domain",
+          "token": "API token (optional)",
+          "include_prereleases": "Include pre-releases",
+          "provider": "Git provider"
+        },
+        "data_description": {
+          "url": "Full URL incl. owner/repository, e.g. http://172.16.1.36:3000/toxic/linknlink-local or https://github.com/owner/repo",
+          "target_domain": "Folder name under custom_components, e.g. linknlink",
+          "token": "Only needed for private repositories (GitHub: also avoids the rate limit). Stored only in this entry.",
+          "provider": "Automatic detection is recommended"
+        }
+      },
+      "confirm": {
+        "title": "Detected: {provider}",
+        "description": "Repository: {repository}\nLatest release: {latest}\nInstalled {domain}: {installed}",
+        "data": {
+          "install_now": "Install now"
+        },
+        "data_description": {
+          "install_now": "custom_components/{domain} does not exist yet. Installs the latest release; a restart is required afterwards."
+        }
+      }
+    },
+    "error": {
+      "invalid_url": "Not a valid repository URL (http(s)://host/owner/repository).",
+      "invalid_domain": "Only lowercase letters, digits and _ are allowed.",
+      "no_compatible_git": "No compatible Git detected.",
+      "provider_mismatch": "The selected Git provider does not answer as expected for this repository.",
+      "cannot_connect": "The server is not reachable or timed out.",
+      "invalid_auth": "The API token was rejected.",
+      "rate_limited": "API rate limit reached. Try again later or enter a token.",
+      "install_failed": "Installation failed, nothing was changed: {error}"
+    },
+    "abort": {
+      "already_configured": "This integration is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "include_prereleases": "Include pre-releases"
+        }
+      }
+    }
+  },
+  "selector": {
+    "provider": {
+      "options": {
+        "auto": "Automatic",
+        "github": "GitHub",
+        "gitlab": "GitLab",
+        "gitea": "Forgejo/Gitea"
+      }
+    }
+  },
+  "issues": {
+    "restart_required": {
+      "title": "Restart required for {domain}",
+      "description": "{domain} {version} has been installed. Restart Home Assistant to load it."
+    }
+  }
+}

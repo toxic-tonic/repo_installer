@@ -1,0 +1,71 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Git-Repository",
+        "description": "Eine Custom Integration aus den Release-ZIPs eines GitHub-, GitLab-, Forgejo- oder Gitea-Repositorys installieren und aktuell halten.",
+        "data": {
+          "url": "Repository-URL",
+          "target_domain": "Domain der Integration",
+          "token": "API-Token (optional)",
+          "include_prereleases": "Pre-Releases einbeziehen",
+          "provider": "Quellsystem"
+        },
+        "data_description": {
+          "url": "Vollständige URL inkl. Owner/Repository, z. B. http://172.16.1.36:3000/toxic/linknlink-local oder https://github.com/owner/repo",
+          "target_domain": "Ordnername unter custom_components, z. B. linknlink",
+          "token": "Nur für private Repositorys nötig (GitHub: vermeidet zusätzlich das Rate-Limit). Wird nur in diesem Eintrag gespeichert.",
+          "provider": "Empfohlen: automatisch erkennen"
+        }
+      },
+      "confirm": {
+        "title": "Erkannt: {provider}",
+        "description": "Repository: {repository}\nNeuestes Release: {latest}\nInstalliert ({domain}): {installed}",
+        "data": {
+          "install_now": "Jetzt installieren"
+        },
+        "data_description": {
+          "install_now": "custom_components/{domain} existiert noch nicht. Installiert das neueste Release; danach ist ein Neustart nötig."
+        }
+      }
+    },
+    "error": {
+      "invalid_url": "Keine gültige Repository-URL (http(s)://host/owner/repository).",
+      "invalid_domain": "Nur Kleinbuchstaben, Ziffern und _ erlaubt.",
+      "no_compatible_git": "Kein kompatibles Git erkannt.",
+      "provider_mismatch": "Das gewählte Quellsystem antwortet für dieses Repository nicht passend.",
+      "cannot_connect": "Server nicht erreichbar oder Zeitüberschreitung.",
+      "invalid_auth": "Das API-Token wurde abgelehnt.",
+      "rate_limited": "API-Rate-Limit erreicht. Später erneut versuchen oder ein Token eintragen.",
+      "install_failed": "Installation fehlgeschlagen, es wurde nichts verändert: {error}"
+    },
+    "abort": {
+      "already_configured": "Diese Integration ist bereits eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "include_prereleases": "Pre-Releases einbeziehen"
+        }
+      }
+    }
+  },
+  "selector": {
+    "provider": {
+      "options": {
+        "auto": "Automatisch",
+        "github": "GitHub",
+        "gitlab": "GitLab",
+        "gitea": "Forgejo/Gitea"
+      }
+    }
+  },
+  "issues": {
+    "restart_required": {
+      "title": "Neustart erforderlich für {domain}",
+      "description": "{domain} {version} wurde installiert. Home Assistant neu starten, um die neue Version zu laden."
+    }
+  }
+}

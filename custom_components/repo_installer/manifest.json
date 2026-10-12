@@ -1,0 +1,12 @@
+{
+  "domain": "repo_installer",
+  "name": "Repo Installer",
+  "codeowners": ["@toxic"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "http://172.16.1.36:3000/toxic/repo_installer",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "requirements": [],
+  "version": "0.1.0"
+}

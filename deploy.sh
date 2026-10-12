@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Baut das Release-ZIP fuer custom_components/forgejo_updater.
+# Baut das Release-ZIP fuer custom_components/repo_installer.
 #
-#   ./deploy.sh zip   baut dist/forgejo_updater-<version>-<kurzhash>.zip
+#   ./deploy.sh zip   baut dist/repo_installer-<version>-<kurzhash>.zip
 #
 # Nur von einem sauberen, gepushten master-Stand.
 set -euo pipefail
 
 MODE="${1:-}"
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
-DOMAIN=forgejo_updater
+DOMAIN=repo_installer
 SRC="$REPO_DIR/custom_components/$DOMAIN"
 
 git -C "$REPO_DIR" fetch -q origin

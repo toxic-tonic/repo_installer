@@ -31,16 +31,29 @@ class InstallError(Exception):
     """The ZIP was rejected or could not be installed."""
 
 
+UNKNOWN_VERSION = "unknown"
+
+
 def read_installed_version(components_dir: Path, domain: str) -> str | None:
-    """Version from custom_components/<domain>/manifest.json, None if absent."""
+    """Version from custom_components/<domain>/manifest.json.
+
+    None if the folder does not exist (not installed), UNKNOWN_VERSION if it
+    exists but has no readable version.
+    """
+    folder = components_dir / domain
+    if not folder.exists() and not folder.is_symlink():
+        return None
     try:
-        manifest = json.loads((components_dir / domain / "manifest.json").read_text())
-    except FileNotFoundError:
-        return None
-    except (OSError, ValueError):
-        return None
-    version = manifest.get("version")
-    return str(version) if version is not None else None
+        manifest = json.loads((folder / "manifest.json").read_text())
+        version = manifest.get("version")
+    except (OSError, ValueError, AttributeError):
+        return UNKNOWN_VERSION
+    return str(version) if version is not None else UNKNOWN_VERSION
+
+
+def target_exists(components_dir: Path, domain: str) -> bool:
+    folder = components_dir / domain
+    return folder.exists() or folder.is_symlink()
 
 
 def _validate_zip(zf: zipfile.ZipFile, domain: str, version: str) -> None:
@@ -118,10 +131,7 @@ def install_zip(components_dir: Path, domain: str, version: str, data: bytes) ->
             return _swap(components_dir, domain, new_dir)
         finally:
             shutil.rmtree(staging, ignore_errors=True)
-            try:
-                staging_root.rmdir()
-            except OSError:
-                pass
+            _remove_if_empty(staging_root)
 
 
 def _swap(components_dir: Path, domain: str, new_dir: Path) -> Path | None:
@@ -131,23 +141,36 @@ def _swap(components_dir: Path, domain: str, new_dir: Path) -> Path | None:
     first is rolled back, so the integration folder is never half-written.
     """
     target = components_dir / domain
+    backup_root = components_dir / BACKUP_DIR
     backup: Path | None = None
-    if target.exists() or target.is_symlink():
-        old_version = read_installed_version(components_dir, domain) or "unknown"
-        backup_root = components_dir / BACKUP_DIR
+    if target_exists(components_dir, domain):
+        old_version = read_installed_version(components_dir, domain) or UNKNOWN_VERSION
         backup_root.mkdir(exist_ok=True)
         backup = backup_root / f"{domain}-{_safe_name(old_version)}"
         if backup.exists():
             backup = backup.with_name(f"{backup.name}-{time.strftime('%Y%m%d%H%M%S')}")
-        os.rename(target, backup)
+        try:
+            os.rename(target, backup)
+        except OSError:
+            _remove_if_empty(backup_root)
+            raise
         now = time.time()
         os.utime(backup, (now, now), follow_symlinks=False)
+    # else: first install, the target folder is simply created, no backup
     try:
         os.rename(new_dir, target)
     except OSError:
         if backup is not None:
             os.rename(backup, target)
+            _remove_if_empty(backup_root)
         raise
     if backup is not None:
-        rotate_backups(components_dir / BACKUP_DIR, domain)
+        rotate_backups(backup_root, domain)
     return backup
+
+
+def _remove_if_empty(path: Path) -> None:
+    try:
+        path.rmdir()
+    except OSError:
+        pass

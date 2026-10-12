@@ -13,9 +13,21 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from conftest import API, BASE, REPO, TARGET, make_zip, mock_release, release_json, sha, write_target
+from conftest import (
+    API,
+    BASE,
+    DOMAIN,
+    REPO,
+    REPO_URL,
+    TARGET,
+    leftovers,
+    make_zip,
+    mock_release,
+    release_json,
+    sha,
+    write_target,
+)
 
-DOMAIN = "forgejo_updater"
 ENTITY = "update.demo_target_toxic_demo_integration"
 
 
@@ -24,7 +36,8 @@ def make_entry(hass, **options) -> MockConfigEntry:
         domain=DOMAIN,
         unique_id=TARGET,
         title=f"{TARGET} ({REPO})",
-        data={"url": BASE, "repository": REPO, "target_domain": TARGET},
+        data={"url": REPO_URL, "provider": "gitea", "base_url": BASE, "repo_path": REPO,
+              "target_domain": TARGET},
         options={"include_prereleases": False, **options},
     )
     entry.add_to_hass(hass)
@@ -44,7 +57,7 @@ async def install(hass, version=None):
 
 
 def backups(components_dir):
-    root = components_dir / ".forgejo_updater_backup"
+    root = components_dir / ".repo_installer_backup"
     return sorted(p.name for p in root.iterdir()) if root.exists() else []
 
 
@@ -61,7 +74,7 @@ async def test_update_detected(hass, components_dir, aioclient_mock):
     assert state.attributes["release_url"].endswith("/releases/tag/v1.0.1")
 
     ws_notes = await hass.data["entity_components"]["update"].get_entity(ENTITY).async_release_notes()
-    assert "SHA-256 ZIP" in ws_notes
+    assert "SHA-256" in ws_notes
 
 
 async def test_no_update_when_current(hass, components_dir, aioclient_mock):
@@ -96,8 +109,8 @@ async def test_install_good_sha(hass, components_dir, aioclient_mock):
 
     assert (components_dir / TARGET / "__init__.py").read_text() == "VERSION = '1.0.1'\n"
     assert backups(components_dir) == [f"{TARGET}-1.0.0"]
-    assert (components_dir / ".forgejo_updater_backup" / f"{TARGET}-1.0.0" / "__init__.py").read_text() == "VERSION = '1.0.0'\n"
-    assert not (components_dir / ".forgejo_updater_staging").exists()
+    assert (components_dir / ".repo_installer_backup" / f"{TARGET}-1.0.0" / "__init__.py").read_text() == "VERSION = '1.0.0'\n"
+    assert not (components_dir / ".repo_installer_staging").exists()
 
     state = hass.states.get(ENTITY)
     assert state.state == STATE_OFF
@@ -179,7 +192,7 @@ async def test_backup_rotation(hass, components_dir, aioclient_mock):
     assert hass.states.get(ENTITY).attributes["installed_version"] == "1.0.3"
 
 
-async def test_forgejo_offline_at_start(hass, components_dir, aioclient_mock):
+async def test_provider_offline_at_start(hass, components_dir, aioclient_mock):
     """Setup must not wait on the network; entity is unavailable, entry loaded."""
     gate = asyncio.Event()
 
@@ -201,7 +214,7 @@ async def test_forgejo_offline_at_start(hass, components_dir, aioclient_mock):
     assert entry.state is ConfigEntryState.LOADED
     assert hass.states.get(ENTITY).state == STATE_UNAVAILABLE
 
-    # Forgejo comes back: manual check (homeassistant.update_entity) recovers
+    # Server comes back: manual check (homeassistant.update_entity) recovers
     assert await async_setup_component(hass, "homeassistant", {})
     aioclient_mock.clear_requests()
     mock_release(aioclient_mock, "1.0.1", make_zip("1.0.1"))
@@ -235,12 +248,72 @@ async def test_prereleases(hass, components_dir, aioclient_mock):
     assert hass.states.get(ENTITY).attributes["latest_version"] == "1.1.0b1"
 
 
-async def test_first_install_without_existing_folder(hass, tmp_path, aioclient_mock):
-    hass.config.config_dir = str(tmp_path)
-    components_dir = tmp_path / "custom_components"
-    components_dir.mkdir()
+async def test_not_installed_offers_first_install(hass, empty_components_dir, aioclient_mock):
+    """No custom_components/<domain>: shown as not installed, install creates it without backup."""
     mock_release(aioclient_mock, "1.0.1", make_zip("1.0.1"))
     await setup(hass, make_entry(hass))
+    state = hass.states.get(ENTITY)
+    assert state.state == STATE_ON
+    assert state.attributes["installed_version"] == "nicht installiert"
+
     await install(hass)
-    assert (components_dir / TARGET / "manifest.json").is_file()
-    assert backups(components_dir) == []
+    assert (empty_components_dir / TARGET / "manifest.json").is_file()
+    assert leftovers(empty_components_dir) == []  # no backup, no staging
+    assert hass.states.get(ENTITY).attributes["installed_version"] == "1.0.1"
+    assert ir.async_get(hass).async_get_issue(DOMAIN, f"restart_required_{TARGET}") is not None
+
+
+@pytest.mark.parametrize(
+    ("zip_bytes", "sha256", "message"),
+    [
+        (make_zip("1.0.1"), "f" * 64, "SHA-256 mismatch"),
+        (make_zip("1.0.1", manifest_domain="other"), None, "domain is 'other'"),
+        (make_zip("1.0.1", domain="other"), None, "Unexpected path"),
+    ],
+    ids=["wrong-sha", "wrong-manifest-domain", "wrong-folder"],
+)
+async def test_first_install_failure_leaves_nothing(
+    hass, empty_components_dir, aioclient_mock, zip_bytes, sha256, message
+):
+    mock_release(aioclient_mock, "1.0.1", zip_bytes, sha256=sha256)
+    await setup(hass, make_entry(hass))
+    with pytest.raises(HomeAssistantError, match=message):
+        await install(hass)
+    assert list(empty_components_dir.iterdir()) == []
+    assert ir.async_get(hass).async_get_issue(DOMAIN, f"restart_required_{TARGET}") is None
+
+
+async def test_unreadable_manifest_offers_reinstall(hass, components_dir, aioclient_mock):
+    (components_dir / TARGET / "manifest.json").write_text("{broken")
+    mock_release(aioclient_mock, "1.0.1", make_zip("1.0.1"))
+    await setup(hass, make_entry(hass))
+    state = hass.states.get(ENTITY)
+    assert state.state == STATE_ON
+    assert state.attributes["installed_version"] == "unknown"
+    await install(hass)
+    assert backups(components_dir) == [f"{TARGET}-unknown"]
+
+
+async def test_github_rate_limit_keeps_last_release(hass, components_dir, aioclient_mock):
+    """Rate limit is not fatal: the entity keeps the last known release."""
+    from conftest import GH_API, GH_REPO, GH_URL, github_release_json
+
+    aioclient_mock.get(f"{GH_API}/releases/latest", json=github_release_json("1.2.0", "a" * 64))
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id=TARGET, title=f"{TARGET} ({GH_REPO})",
+        data={"url": GH_URL, "provider": "github", "base_url": "https://github.com",
+              "repo_path": GH_REPO, "target_domain": TARGET},
+        options={"include_prereleases": False},
+    )
+    entry.add_to_hass(hass)
+    await setup(hass, entry)
+    entity = "update.demo_target_owner_demo"
+    assert hass.states.get(entity).attributes["latest_version"] == "1.2.0"
+
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(f"{GH_API}/releases/latest", status=403, headers={"x-ratelimit-remaining": "0"})
+    await entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    state = hass.states.get(entity)
+    assert state.state == STATE_ON
+    assert state.attributes["latest_version"] == "1.2.0"
