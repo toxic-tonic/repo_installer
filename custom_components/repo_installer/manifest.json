@@ -1,13 +1,13 @@
 {
   "domain": "repo_installer",
   "name": "Repo Installer",
-  "codeowners": ["@<GITHUB_USER>"],
+  "codeowners": ["@toxic-tonic"],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/<GITHUB_USER>/repo_installer",
+  "documentation": "https://github.com/toxic-tonic/repo_installer",
   "integration_type": "service",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/<GITHUB_USER>/repo_installer/issues",
+  "issue_tracker": "https://github.com/toxic-tonic/repo_installer/issues",
   "requirements": [],
   "version": "0.2.0"
 }

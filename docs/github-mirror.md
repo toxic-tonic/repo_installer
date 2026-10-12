@@ -1,11 +1,11 @@
 # GitHub-Spiegel einrichten (Forgejo → GitHub)
 
-Kurz und handytauglich. Platzhalter `<GITHUB_USER>` vorher ersetzen (`scripts/placeholders.py apply GITHUB_USER=<name>`).
+Kurz und handytauglich. Platzhalter `toxic-tonic` vorher ersetzen (`scripts/placeholders.py apply GITHUB_USER=<name>`).
 
 ## 1. GitHub-Repo anlegen
 
 1. github.com → **+** → *New repository*
-2. Owner `<GITHUB_USER>`, Name **`repo_installer`**, **Public**
+2. Owner `toxic-tonic`, Name **`repo_installer`**, **Public**
 3. **Leer** lassen: kein README, keine Lizenz, kein .gitignore
 4. *Create repository*
 5. Repo → ⚙ *Settings* → *General*:
@@ -19,7 +19,7 @@ Kurz und handytauglich. Platzhalter `<GITHUB_USER>` vorher ersetzen (`scripts/pl
 
 1. GitHub → Profilbild → *Settings* → *Developer settings* → *Personal access tokens* → **Fine-grained tokens** → *Generate new token*
 2. Name `forgejo-mirror-repo_installer`, **Expiration** setzen (z. B. 1 Jahr, Termin notieren)
-3. *Repository access* → **Only select repositories** → `<GITHUB_USER>/repo_installer`
+3. *Repository access* → **Only select repositories** → `toxic-tonic/repo_installer`
 4. *Permissions* → *Repository permissions*, genau diese zwei (Metadata: read setzt GitHub automatisch), sonst nichts:
    - **Contents: Read and write**
    - **Workflows: Read and write** – Pflicht: ohne dieses Recht lehnt GitHub jeden Push ab, der Dateien unter `.github/workflows/` enthält
@@ -29,8 +29,8 @@ Kurz und handytauglich. Platzhalter `<GITHUB_USER>` vorher ersetzen (`scripts/pl
 
 1. Forgejo → `toxic/repo_installer` → *Einstellungen* → *Repository* → Abschnitt **Spiegeleinstellungen**
 2. *Push-Mirror hinzufügen*:
-   - Git-Remote-URL: `https://github.com/<GITHUB_USER>/repo_installer.git`
-   - Benutzername: `<GITHUB_USER>`, Passwort: **das Token**
+   - Git-Remote-URL: `https://github.com/toxic-tonic/repo_installer.git`
+   - Benutzername: `toxic-tonic`, Passwort: **das Token**
    - **Bei Push synchronisieren** ✓
    - Intervall: `8h` (Rückfall, falls ein Push-Sync ausfällt)
 3. Speichern → **Jetzt synchronisieren**
@@ -41,7 +41,7 @@ Kurz und handytauglich. Platzhalter `<GITHUB_USER>` vorher ersetzen (`scripts/pl
 ## Regeln
 
 - **Auf GitHub nie direkt committen**, nie über die GitHub-Oberfläche Dateien ändern, keine Releases von Hand. Der nächste Spiegel-Push würde abweichende Stände überschreiben bzw. scheitern.
-- Pull-Requests auf GitHub: Änderung lokal nach Forgejo übernehmen (Patch: `https://github.com/<GITHUB_USER>/repo_installer/pull/<nr>.patch`, `git am`), dort normal committen und releasen; PR auf GitHub mit Dank und Verweis auf den Commit schließen.
+- Pull-Requests auf GitHub: Änderung lokal nach Forgejo übernehmen (Patch: `https://github.com/toxic-tonic/repo_installer/pull/<nr>.patch`, `git am`), dort normal committen und releasen; PR auf GitHub mit Dank und Verweis auf den Commit schließen.
 - Die Workflows committen und pushen nie.
 
 ## Release-Ablauf ab dann

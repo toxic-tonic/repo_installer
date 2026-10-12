@@ -13,7 +13,7 @@ Only the latest release receives fixes. Please update before reporting.
 
 Please **do not open a public issue** for security problems. Use GitHub's
 **private vulnerability reporting** instead: on
-`https://github.com/<GITHUB_USER>/repo_installer` open the **Security** tab
+`https://github.com/toxic-tonic/repo_installer` open the **Security** tab
 and click **Report a vulnerability**. Only the maintainer can see the report.
 
 Include the installer version, the Home Assistant version, the Git

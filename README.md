@@ -97,7 +97,7 @@ Any integration you want to install this way needs releases like this:
 ## Installation via HACS (custom repository)
 
 1. Open HACS → ⋮ (top right) → *Custom repositories*.
-2. Repository: `https://github.com/<GITHUB_USER>/repo_installer`,
+2. Repository: `https://github.com/toxic-tonic/repo_installer`,
    type: *Integration* → *Add*.
 3. Search for "Repo Installer" in HACS, open it → *Download*.
 4. Restart Home Assistant.
@@ -106,7 +106,7 @@ Any integration you want to install this way needs releases like this:
 ## Manual installation
 
 1. Download `repo_installer.zip` from the latest
-   [release](https://github.com/<GITHUB_USER>/repo_installer/releases/latest).
+   [release](https://github.com/toxic-tonic/repo_installer/releases/latest).
 2. Unpack it into `/config/custom_components/` (result:
    `/config/custom_components/repo_installer/manifest.json`), replacing an
    existing `repo_installer` folder.

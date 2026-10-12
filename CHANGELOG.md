@@ -5,7 +5,7 @@ All notable changes to this project are documented here. The format follows
 `X.Y.Z` (tag `v<version>`). Each section is used verbatim as the release
 notes of that version; the release adds the `SHA-256:` line.
 
-## [0.2.0] - unreleased
+## [0.2.0] - 2026-10-12
 
 ### Added
 - Store preparation: `hacs.json` (HACS installs the tagged source,

@@ -30,7 +30,7 @@ Zurückrollen: Ordner aus `custom_components/.repo_installer_backup/` zurück na
 
 ## Installation des Installers
 
-- **HACS:** HACS → ⋮ → Benutzerdefinierte Repositories → `https://github.com/<GITHUB_USER>/repo_installer`, Typ „Integration“ → herunterladen → HA neu starten.
+- **HACS:** HACS → ⋮ → Benutzerdefinierte Repositories → `https://github.com/toxic-tonic/repo_installer`, Typ „Integration“ → herunterladen → HA neu starten.
 - **Manuell:** `repo_installer.zip` aus dem neuesten Release nach `/config/custom_components/` entpacken, HA neu starten.
 
 Community-Werkzeug ohne Supportversprechen. Entwicklung auf einer selbst gehosteten Forgejo-Instanz, GitHub ist ein Spiegel; Issues willkommen, Pull-Requests werden manuell übernommen. Details im [englischen README](README.md). Lizenz: [MIT](LICENSE).

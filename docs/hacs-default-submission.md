@@ -36,7 +36,7 @@ Hinweis Policy: Ausgeschlossen werden laut include.md nur „Custom integrations
 1. Vorab-Anfrage stellen (unten), Antwort abwarten.
 2. Voraussetzungen der Checkliste erfüllt, letzte Actions grün, danach ein neues Release.
 3. `hacs/default` forken (persönlicher Account), Branch von `master` anlegen.
-4. Datei `integration` (JSON-Liste `"owner/repo"`) – `"<GITHUB_USER>/repo_installer"` **alphabetisch** einsortieren (Prüfung: `sorted(..., key=str.casefold)`), nicht ans Ende.
+4. Datei `integration` (JSON-Liste `"owner/repo"`) – `"toxic-tonic/repo_installer"` **alphabetisch** einsortieren (Prüfung: `sorted(..., key=str.casefold)`), nicht ans Ende.
 5. Pull-Request mit vollständig ausgefüllter Vorlage:
    - alle Haken der Checkliste
    - Link zum aktuellen Release
@@ -50,7 +50,7 @@ Für HACS Discord (#publishing o. ä.) oder GitHub Discussions von `hacs`:
 
 > Hi! Before opening a PR to hacs/default I'd like to ask whether this kind of integration would be acceptable as a default repository.
 >
-> **Repo Installer** (https://github.com/<GITHUB_USER>/repo_installer) installs and updates custom integrations from release ZIPs on **self-hosted** Git servers – Forgejo, Gitea, GitLab – and GitHub. Typical use: your own integrations or forks living on a home-lab Forgejo, which HACS can't reach because it only supports GitHub.
+> **Repo Installer** (https://github.com/toxic-tonic/repo_installer) installs and updates custom integrations from release ZIPs on **self-hosted** Git servers – Forgejo, Gitea, GitLab – and GitHub. Typical use: your own integrations or forks living on a home-lab Forgejo, which HACS can't reach because it only supports GitHub.
 >
 > It is meant to complement HACS, not replace it: no store, no index, no discovery – the user enters one repository URL per integration. Every install requires a SHA-256 from the release notes, downloads are bound to the repository host, nothing downloaded is executed, and Home Assistant is never restarted automatically. The README tells users to remove an integration from HACS before managing it with Repo Installer, so the two never fight over the same folder.
 >

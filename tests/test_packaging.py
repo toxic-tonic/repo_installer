@@ -113,7 +113,8 @@ def test_placeholders_known():
             if match[1] not in placeholders.PLACEHOLDERS:
                 unknown.add((path.relative_to(ROOT).as_posix(), match[0]))
     assert unknown == set()
-    assert {name for _, _, name in placeholders.occurrences()} == set(placeholders.PLACEHOLDERS)
+    # all applied for the release (scripts/placeholders.py list must be empty)
+    assert placeholders.occurrences() == []
 
 
 # --- deterministic ZIP ------------------------------------------------------------------
