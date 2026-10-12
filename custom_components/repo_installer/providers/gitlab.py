@@ -21,8 +21,9 @@ from .base import (
 
 GITLAB_HOST = "gitlab.com"
 
-# gitlab.com redirects package/upload downloads to its object storage.
-GITLAB_COM_ASSET_HOSTS = ("gitlab.com", "storage.googleapis.com")
+# gitlab.com serves release links (…/-/releases/<tag>/downloads/…) and the
+# generic package registry itself (checked live 2026-10, gitlab-org/cli).
+GITLAB_COM_ASSET_HOSTS = ("gitlab.com",)
 
 
 class GitLabProvider(Provider):

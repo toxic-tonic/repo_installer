@@ -27,6 +27,26 @@
         "data_description": {
           "install_now": "custom_components/{domain} existiert noch nicht. Installiert das neueste Release; danach ist ein Neustart nötig."
         }
+      },
+      "reauth_confirm": {
+        "title": "Token abgelehnt",
+        "description": "Die API hat das Token für {repository} abgelehnt. Neues Token eingeben (leer: ohne Token).",
+        "data": {
+          "token": "API-Token"
+        }
+      },
+      "reconfigure": {
+        "title": "Token oder Quellsystem ändern",
+        "description": "Repository: {repository}\nToken gespeichert: {token_state}",
+        "data": {
+          "token": "Neues API-Token (optional)",
+          "remove_token": "Gespeichertes Token entfernen",
+          "provider": "Quellsystem"
+        },
+        "data_description": {
+          "token": "Leer lassen behält das gespeicherte Token",
+          "provider": "Bei Änderung wird nur dieses Quellsystem geprüft"
+        }
       }
     },
     "error": {
@@ -37,10 +57,13 @@
       "cannot_connect": "Server nicht erreichbar oder Zeitüberschreitung.",
       "invalid_auth": "Das API-Token wurde abgelehnt.",
       "rate_limited": "API-Rate-Limit erreicht. Später erneut versuchen oder ein Token eintragen.",
-      "install_failed": "Installation fehlgeschlagen, es wurde nichts verändert: {error}"
+      "install_failed": "Installation fehlgeschlagen, es wurde nichts verändert: {error}",
+      "repository_not_found": "Repository nicht gefunden. Private Repositorys brauchen ein gültiges Token."
     },
     "abort": {
-      "already_configured": "Diese Integration ist bereits eingerichtet."
+      "already_configured": "Diese Integration ist bereits eingerichtet.",
+      "reauth_successful": "Token aktualisiert.",
+      "reconfigure_successful": "Konfiguration aktualisiert."
     }
   },
   "options": {
@@ -48,6 +71,19 @@
       "init": {
         "data": {
           "include_prereleases": "Pre-Releases einbeziehen"
+        }
+      }
+    }
+  },
+  "entity": {
+    "update": {
+      "integration": {
+        "state_attributes": {
+          "release_summary": {
+            "state": {
+              "not_installed": "Noch nicht installiert. Das Update installiert diese Integration erstmals aus dem neuesten Release."
+            }
+          }
         }
       }
     }

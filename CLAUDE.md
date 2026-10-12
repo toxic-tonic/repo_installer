@@ -39,8 +39,11 @@ Vorlage für jede eigene Integration, die über den Repo Installer verteilt wird
 - Repo-Arbeitskopie: `/home/dev/repo_installer`. `deploy.sh` und `dist/` liegen im Repo-Root; `deploy.sh zip` verlangt einen sauberen `master`, der `origin/master` entspricht, und baut aus `git archive HEAD`.
 - Vorgänger `forgejo_updater` liegt unverändert in `/home/dev/ha-forgejo-updater`, Branch `pre-rename` (ffe70e7) als Sicherung, in beiden Arbeitskopien.
 - HA-Tests (HA 2026.2.3, venv aus linknlink-local):
-  `cd /home/dev/repo_installer && /home/dev/linknlink-local/.venv-ha/bin/pytest -q -p no:cacheprovider`
-  - `tests/test_live.py` (Marker `live`) liest nur (GET) von `toxic/linknlink-local`, muss Forgejo/Gitea erkennen und das aktuelle linknlink-Release als latest finden; installiert nur in ein Temp-Verzeichnis. Bei einem neuen linknlink-Release `EXPECTED`/`EXPECTED_SHA` dort nachziehen.
+  - Unit: `cd /home/dev/repo_installer && /home/dev/linknlink-local/.venv-ha/bin/pytest -q -p no:cacheprovider` (Live-Tests werden übersprungen)
+  - Live: dieselbe Zeile mit `--live -m live`. Alle Live-Tests (Marker `live`) lesen nur und installieren nur in Temp-Verzeichnisse.
+  - Vor einem Release laufen beide; das Testergebnis in der Release-Beschreibung nennt Unit und Live getrennt.
+  - `tests/test_live.py`: `toxic/linknlink-local` muss als Forgejo/Gitea erkannt werden, das aktuelle linknlink-Release ist latest. Bei einem neuen linknlink-Release `EXPECTED`/`EXPECTED_SHA` dort nachziehen.
+  - `tests/test_live_external.py`: `hacs/integration` (GitHub) und `gitlab-org/cli` (gitlab.com): Erkennung, latest, Asset-URL, Download über die erlaubten Hosts (gegen Dummy-SHA, muss mit „mismatch“ scheitern), Ablehnung ohne SHA-256 ohne Reste. GitHub ohne Token: 60 Anfragen/Stunde.
 - Forgejo-API: `http://172.16.1.36:3000/api/v1/repos/toxic/repo_installer`. Token über `git credential fill` (host `172.16.1.36:3000`), nie ausgeben. Das Token darf keine Repos anlegen.
   - Release anlegen: `POST /releases` mit `tag_name`, `name`, `body`
   - Asset hochladen: `POST /releases/{id}/assets?name=<datei>` (multipart, Feld `attachment`)
@@ -49,8 +52,8 @@ Vorlage für jede eigene Integration, die über den Repo Installer verteilt wird
 ## Aufbau
 
 - `providers/`: ein Adapter je Quellsystem (`gitea.py` für Forgejo+Gitea, `github.py`, `gitlab.py`) auf gemeinsamer Basis `base.py` (Release-Modell, Download mit SHA-256 und Host-Bindung); `__init__.py` enthält URL-Parsing und Autoerkennung.
-- `config_flow.py`: URL + Domain → Erkennung → Bestätigung „Erkannt: …“ mit „Jetzt installieren“, wenn der Zielordner fehlt.
-- `update.py` / `coordinator.py`: Update-Entität je Eintrag, Prüfung alle 6 h.
+- `config_flow.py`: URL + Domain → Erkennung → Bestätigung „Erkannt: …“ mit „Jetzt installieren“, wenn der Zielordner fehlt. Neu konfigurieren (Token, Quellsystem) und Reauth bei HTTP 401/403.
+- `update.py` / `coordinator.py`: Update-Entität je Eintrag, Prüfung alle 6 h. Nicht installiert: installierte Version leer (`""`, nicht `None` – sonst Zustand `unknown`, und das Frontend blendet Installieren und den Eintrag unter Updates aus), übersetzter Hinweis über `release_summary` und Release-Notes.
 - `installer.py`: ZIP prüfen, entpacken, per Rename tauschen (läuft im Executor). `version.py`: Versionsvergleich.
 
 ## Design-Grenzen (nicht aufweichen)
@@ -59,7 +62,7 @@ Vorlage für jede eigene Integration, die über den Repo Installer verteilt wird
 - HA-Start wartet nie auf Netzwerk: erster Abruf als Background-Task, Anbieter offline → Entität `unavailable`. GitHub-Rate-Limit mit bekanntem Stand → letzter Stand bleibt, nur Warnung im Log.
 - Quellsystem wird nur im Config Flow erkannt (max. ca. 15 s) und im Eintrag gespeichert, nie bei späteren Abfragen.
 - Installation nur: Asset aus dem konfigurierten Repo, SHA-256 aus der Release-Beschreibung passt (Pflicht für alle Anbieter), ZIP enthält nur `<domain>/…` mit passender Manifest-Domain und -Version, keine Symlinks/`..`, Größenlimit. Heruntergeladenes wird nie ausgeführt, nur entpackt und per Rename getauscht.
-- Host-Bindung: Redirects werden von Hand verfolgt, jeder Hop muss in der Host-Liste des Adapters stehen (Repo-Host; github.com zusätzlich die GitHub-Objektspeicher-Hosts, gitlab.com zusätzlich `storage.googleapis.com`). Token geht nur an den API-/Repo-Host, nie an Objektspeicher. API-Redirects werden nicht verfolgt.
+- Host-Bindung: Redirects werden von Hand verfolgt, jeder Hop muss in der Host-Liste des Adapters stehen (Repo-Host; github.com zusätzlich die GitHub-Objektspeicher-Hosts, live bestätigt: `release-assets.githubusercontent.com`; gitlab.com liefert Release-Links und Generic Packages selbst aus, live bestätigt, kein Fremd-Host). Token geht nur an den API-/Repo-Host, nie an Objektspeicher. API-Redirects werden nicht verfolgt.
 - Tokens nur im Config-Entry, nie in Logs oder Fehlermeldungen.
 - Fehlender Zielordner: wird angelegt, kein Backup. Vorhandener Ordner: Backup unter `/config/custom_components/.repo_installer_backup/<domain>-<alte-version>`, die letzten 2 pro Domain bleiben. Bei Fehlschlag keine Reste.
 - Nach Installation nur Reparatur-Hinweis „Neustart erforderlich“ (verschwindet nach dem Neustart), nie selbst neu starten.

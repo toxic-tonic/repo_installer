@@ -14,7 +14,11 @@ Einstellungen → Geräte & Dienste → Integration hinzufügen → „Repo Inst
 | Pre-Releases einbeziehen | aus |
 | Quellsystem | Automatisch |
 
+> **HACS:** Ist dieselbe Integration bereits über HACS installiert, sie vorher in HACS entfernen. Sonst überschreibt HACS beim nächsten Update den Stand aus dem eigenen Repo (z. B. einen Fork).
+
 Der nächste Schritt zeigt das erkannte Quellsystem („Erkannt: Forgejo/Gitea“) und das neueste Release. Existiert `custom_components/<domain>` noch nicht, steht dort **„Jetzt installieren“**. Pro Integration ein Eintrag. Geprüft wird alle 6 Stunden und bei „Nach Updates suchen“.
+
+Token oder Quellsystem später ändern: Eintrag → ⋮ → **Neu konfigurieren**. Lehnt die API das Token ab (HTTP 401/403), bietet HA die erneute Anmeldung von selbst an. Das GitHub-Rate-Limit löst keine erneute Anmeldung aus; mit bekanntem Stand bleibt die Entität verfügbar, nur eine Warnung im Log.
 
 ## Voraussetzungen an die Releases
 

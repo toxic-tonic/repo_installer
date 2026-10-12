@@ -27,6 +27,26 @@
         "data_description": {
           "install_now": "custom_components/{domain} does not exist yet. Installs the latest release; a restart is required afterwards."
         }
+      },
+      "reauth_confirm": {
+        "title": "Token rejected",
+        "description": "The API rejected the token for {repository}. Enter a new token (empty: without token).",
+        "data": {
+          "token": "API token"
+        }
+      },
+      "reconfigure": {
+        "title": "Change token or Git provider",
+        "description": "Repository: {repository}\nToken stored: {token_state}",
+        "data": {
+          "token": "New API token (optional)",
+          "remove_token": "Remove stored token",
+          "provider": "Git provider"
+        },
+        "data_description": {
+          "token": "Empty keeps the stored token",
+          "provider": "Changing it re-runs detection for this provider only"
+        }
       }
     },
     "error": {
@@ -37,10 +57,13 @@
       "cannot_connect": "The server is not reachable or timed out.",
       "invalid_auth": "The API token was rejected.",
       "rate_limited": "API rate limit reached. Try again later or enter a token.",
-      "install_failed": "Installation failed, nothing was changed: {error}"
+      "install_failed": "Installation failed, nothing was changed: {error}",
+      "repository_not_found": "Repository not found. Private repositories need a valid token."
     },
     "abort": {
-      "already_configured": "This integration is already configured."
+      "already_configured": "This integration is already configured.",
+      "reauth_successful": "Token updated.",
+      "reconfigure_successful": "Configuration updated."
     }
   },
   "options": {
@@ -48,6 +71,19 @@
       "init": {
         "data": {
           "include_prereleases": "Include pre-releases"
+        }
+      }
+    }
+  },
+  "entity": {
+    "update": {
+      "integration": {
+        "state_attributes": {
+          "release_summary": {
+            "state": {
+              "not_installed": "Not installed yet. Updating installs this integration from the latest release for the first time."
+            }
+          }
         }
       }
     }

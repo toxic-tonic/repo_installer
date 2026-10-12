@@ -34,9 +34,11 @@ KEEP_BACKUPS = 2
 BACKUP_DIR = ".repo_installer_backup"
 STAGING_DIR = ".repo_installer_staging"
 
-# Shown as installed version when custom_components/<domain> does not exist,
-# so the update entity offers the first install.
-NOT_INSTALLED = "nicht installiert"
+# Installed version when custom_components/<domain> does not exist: empty
+# keeps the update entity "on" (first install offered); the translated hint
+# comes from entity.update.<TRANSLATION_KEY> in strings.json.
+NOT_INSTALLED = ""
+TRANSLATION_KEY = "integration"
 
 DOMAIN_RE = re.compile(r"^[a-z0-9_]+$")
 SHA256_RE = re.compile(r"(?<![0-9a-fA-F])[0-9a-fA-F]{64}(?![0-9a-fA-F])")

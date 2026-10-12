@@ -8,11 +8,12 @@ from pathlib import Path
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import CONF_INCLUDE_PRERELEASES, CONF_TARGET_DOMAIN, UPDATE_INTERVAL
 from .installer import read_installed_version
-from .providers import Provider, RateLimitError, Release, RepoError
+from .providers import Provider, RateLimitError, Release, RepoAuthError, RepoError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -62,6 +63,9 @@ class RepoUpdateCoordinator(DataUpdateCoordinator[UpdateData]):
                 _LOGGER.warning("%s: %s, keeping last known release", self.name, err)
                 return UpdateData(await self.async_read_installed_version(), self.data.release)
             raise UpdateFailed(f"{self.provider.name}: {err}") from err
+        except RepoAuthError as err:
+            # HA offers re-authentication (reauth flow) on its own
+            raise ConfigEntryAuthFailed(f"{self.provider.name}: {err}") from err
         except RepoError as err:
             raise UpdateFailed(f"{self.provider.name}: {err}") from err
         return UpdateData(await self.async_read_installed_version(), release)

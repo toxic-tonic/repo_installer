@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from pathlib import Path
+from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
@@ -12,6 +13,7 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from yarl import URL
 from homeassistant.helpers.selector import (
     SelectSelector,
     SelectSelectorConfig,
@@ -43,31 +45,58 @@ from .installer import InstallError, read_installed_version
 from .providers import (
     DetectionError,
     Provider,
+    RateLimitError,
     Release,
+    RepoAuthError,
+    RepoConnectionError,
     RepoError,
+    RepoLocation,
+    RepoNotFoundError,
     async_detect,
+    build_provider,
     parse_repo_url,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
+CONF_REMOVE_TOKEN = "remove_token"
+
+TOKEN_SELECTOR = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
+PROVIDER_SELECTOR_OPTIONS = [PROVIDER_AUTO, PROVIDER_GITHUB, PROVIDER_GITLAB, PROVIDER_GITEA]
+
+
 USER_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_URL): TextSelector(TextSelectorConfig(type=TextSelectorType.URL)),
         vol.Required(CONF_TARGET_DOMAIN): str,
-        vol.Optional(CONF_TOKEN): TextSelector(
-            TextSelectorConfig(type=TextSelectorType.PASSWORD)
-        ),
+        vol.Optional(CONF_TOKEN): TOKEN_SELECTOR,
         vol.Optional(CONF_INCLUDE_PRERELEASES, default=False): bool,
         vol.Optional(CONF_PROVIDER, default=PROVIDER_AUTO): SelectSelector(
             SelectSelectorConfig(
-                options=[PROVIDER_AUTO, PROVIDER_GITHUB, PROVIDER_GITLAB, PROVIDER_GITEA],
+                options=PROVIDER_SELECTOR_OPTIONS,
                 translation_key="provider",
                 mode=SelectSelectorMode.DROPDOWN,
             )
         ),
     }
 )
+
+
+async def _async_validate(provider: Provider) -> str | None:
+    """Check provider + token against the API; return a flow error key or None."""
+    try:
+        await provider.async_probe()
+    except RateLimitError:
+        return "rate_limited"
+    except RepoAuthError:
+        return "invalid_auth"
+    except RepoNotFoundError:
+        return "repository_not_found"  # private repos answer 404 without valid token
+    except RepoConnectionError:
+        return "cannot_connect"
+    except RepoError:
+        return "provider_mismatch"
+    return None
 
 
 class RepoInstallerConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -214,6 +243,109 @@ class RepoInstallerConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_INCLUDE_PRERELEASES: self._input.get(CONF_INCLUDE_PRERELEASES, False)
             },
         )
+
+    # --- reauth: HA starts this on ConfigEntryAuthFailed (HTTP 401/403) -------
+
+    async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> ConfigFlowResult:
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        entry = self._get_reauth_entry()
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            token = (user_input.get(CONF_TOKEN) or "").strip() or None
+            provider = self._entry_provider(entry, token)
+            if (error := await _async_validate(provider)) is not None:
+                errors["base"] = error
+            else:
+                return self.async_update_reload_and_abort(
+                    entry, data=self._with_token(entry.data, token)
+                )
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema({vol.Optional(CONF_TOKEN): TOKEN_SELECTOR}),
+            errors=errors,
+            description_placeholders={"repository": entry.data[CONF_URL]},
+        )
+
+    # --- reconfigure: change token and/or provider ------------------------------
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        entry = self._get_reconfigure_entry()
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            if user_input.get(CONF_REMOVE_TOKEN):
+                token = None
+            else:
+                # empty field = keep the stored token
+                token = (user_input.get(CONF_TOKEN) or "").strip() or entry.data.get(CONF_TOKEN)
+            wanted = user_input.get(CONF_PROVIDER, entry.data[CONF_PROVIDER])
+            provider: Provider | None = None
+            if wanted == entry.data[CONF_PROVIDER]:
+                provider = self._entry_provider(entry, token)
+                if (error := await _async_validate(provider)) is not None:
+                    errors["base"] = error
+            else:
+                try:
+                    provider = await async_detect(
+                        async_get_clientsession(self.hass),
+                        parse_repo_url(entry.data[CONF_URL]),
+                        token,
+                        wanted,
+                    )
+                except DetectionError as err:
+                    errors["base"] = err.reason
+            if not errors and provider is not None:
+                data = {
+                    **entry.data,
+                    CONF_PROVIDER: provider.key,
+                    CONF_BASE_URL: str(provider.location.base_url),
+                    CONF_REPO_PATH: provider.location.path,
+                }
+                return self.async_update_reload_and_abort(
+                    entry, data=self._with_token(data, token)
+                )
+        schema = vol.Schema(
+            {
+                vol.Optional(CONF_TOKEN): TOKEN_SELECTOR,
+                vol.Optional(CONF_REMOVE_TOKEN, default=False): bool,
+                vol.Optional(CONF_PROVIDER, default=entry.data[CONF_PROVIDER]): SelectSelector(
+                    SelectSelectorConfig(
+                        options=PROVIDER_SELECTOR_OPTIONS,
+                        translation_key="provider",
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+            }
+        )
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders={
+                "repository": entry.data[CONF_URL],
+                "token_state": "✓" if entry.data.get(CONF_TOKEN) else "–",
+            },
+        )
+
+    def _entry_provider(self, entry, token: str | None) -> Provider:
+        return build_provider(
+            async_get_clientsession(self.hass),
+            entry.data[CONF_PROVIDER],
+            RepoLocation(URL(entry.data[CONF_BASE_URL]), entry.data[CONF_REPO_PATH]),
+            token,
+        )
+
+    @staticmethod
+    def _with_token(data: Mapping[str, Any], token: str | None) -> dict[str, Any]:
+        new = {k: v for k, v in data.items() if k != CONF_TOKEN}
+        if token:
+            new[CONF_TOKEN] = token
+        return new
 
     @staticmethod
     @callback

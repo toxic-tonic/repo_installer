@@ -253,14 +253,56 @@ async def test_not_installed_offers_first_install(hass, empty_components_dir, ai
     mock_release(aioclient_mock, "1.0.1", make_zip("1.0.1"))
     await setup(hass, make_entry(hass))
     state = hass.states.get(ENTITY)
-    assert state.state == STATE_ON
-    assert state.attributes["installed_version"] == "nicht installiert"
+    assert state.state == STATE_ON  # not "unknown": install stays offered in the UI
+    assert state.attributes["installed_version"] == ""
+    assert state.attributes["release_summary"].startswith("Not installed yet.")
+    notes = await hass.data["entity_components"]["update"].get_entity(ENTITY).async_release_notes()
+    assert notes.startswith("**Not installed yet.")
+    assert "SHA-256" in notes
 
     await install(hass)
     assert (empty_components_dir / TARGET / "manifest.json").is_file()
     assert leftovers(empty_components_dir) == []  # no backup, no staging
-    assert hass.states.get(ENTITY).attributes["installed_version"] == "1.0.1"
+    state = hass.states.get(ENTITY)
+    assert state.attributes["installed_version"] == "1.0.1"
+    assert state.attributes["release_summary"] is None
     assert ir.async_get(hass).async_get_issue(DOMAIN, f"restart_required_{TARGET}") is not None
+
+
+async def test_not_installed_hint_german(hass, empty_components_dir, aioclient_mock):
+    hass.config.language = "de"
+    mock_release(aioclient_mock, "1.0.1", make_zip("1.0.1"))
+    await setup(hass, make_entry(hass))
+    summary = hass.states.get(ENTITY).attributes["release_summary"]
+    assert summary.startswith("Noch nicht installiert.")
+
+
+async def test_auth_failure_starts_reauth(hass, components_dir, aioclient_mock):
+    """HTTP 401 → ConfigEntryAuthFailed → HA starts the reauth flow by itself."""
+    aioclient_mock.get(f"{API}/releases/latest", status=401)
+    entry = make_entry(hass)
+    await setup(hass, entry)
+    assert hass.states.get(ENTITY).state == STATE_UNAVAILABLE
+    flows = hass.config_entries.flow.async_progress()
+    assert [f["context"]["source"] for f in flows] == ["reauth"]
+    assert flows[0]["context"]["entry_id"] == entry.entry_id
+
+
+async def test_rate_limit_is_no_reauth(hass, components_dir, aioclient_mock):
+    """GitHub rate limit (403 + remaining 0) stays its own message, no reauth."""
+    from conftest import GH_API, GH_REPO, GH_URL
+
+    aioclient_mock.get(f"{GH_API}/releases/latest", status=403, headers={"x-ratelimit-remaining": "0"})
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id=TARGET, title=f"{TARGET} ({GH_REPO})",
+        data={"url": GH_URL, "provider": "github", "base_url": "https://github.com",
+              "repo_path": GH_REPO, "target_domain": TARGET},
+        options={"include_prereleases": False},
+    )
+    entry.add_to_hass(hass)
+    await setup(hass, entry)
+    assert hass.config_entries.flow.async_progress() == []
+    assert "Rate-Limit" in str(entry.runtime_data.last_exception)
 
 
 @pytest.mark.parametrize(

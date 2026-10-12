@@ -42,7 +42,22 @@ def pytest_configure(config):
     ours = str(pathlib.Path(__file__).parent.parent / "custom_components")
     if ours not in custom_components.__path__:
         custom_components.__path__.insert(0, ours)
-    config.addinivalue_line("markers", "live: reads from the real Forgejo at 172.16.1.36")
+    config.addinivalue_line(
+        "markers", "live: read-only against real servers (Forgejo, GitHub, gitlab.com); needs --live"
+    )
+
+
+def pytest_addoption(parser):
+    parser.addoption("--live", action="store_true", help="also run the read-only live tests")
+
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--live"):
+        return
+    skip = pytest.mark.skip(reason="live test, run with --live")
+    for item in items:
+        if "live" in item.keywords:
+            item.add_marker(skip)
 
 
 @pytest.fixture(autouse=True)

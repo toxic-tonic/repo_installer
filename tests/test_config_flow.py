@@ -222,7 +222,8 @@ async def test_install_now_unchecked_only_binds(hass, empty_components_dir, aioc
     assert list(empty_components_dir.iterdir()) == []
     await hass.async_block_till_done(wait_background_tasks=True)
     state = hass.states.get("update.demo_target_toxic_demo_integration")
-    assert state.attributes["installed_version"] == "nicht installiert"
+    assert state.attributes["installed_version"] == ""
+    assert state.state == "on"
 
 
 @pytest.mark.parametrize(
@@ -297,3 +298,100 @@ async def test_gitlab_dotcom_by_host(hass, components_dir, aioclient_mock):
     result = await submit(hass, {"url": "https://gitlab.com/g/p", "target_domain": TARGET})
     assert result["description_placeholders"]["provider"] == "GitLab"
     assert "no releases" in result["description_placeholders"]["latest"]
+
+
+# --- reauth and reconfigure -----------------------------------------------------------
+
+def make_gitea_entry(hass, token="old-tok-4711"):
+    data = {"url": REPO_URL, "provider": "gitea", "base_url": BASE, "repo_path": REPO,
+            "target_domain": TARGET}
+    if token:
+        data["token"] = token
+    entry = MockConfigEntry(domain=DOMAIN, unique_id=TARGET, title=f"{TARGET} ({REPO})",
+                            data=data, options={"include_prereleases": False})
+    entry.add_to_hass(hass)
+    return entry
+
+
+async def test_reauth_flow(hass, components_dir, aioclient_mock):
+    entry = make_gitea_entry(hass)
+    result = await entry.start_reauth_flow(hass)
+    assert result["step_id"] == "reauth_confirm"
+
+    aioclient_mock.get(API, status=401)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"token": "still-bad"})
+    assert result["errors"] == {"base": "invalid_auth"}
+    assert entry.data["token"] == "old-tok-4711"
+
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(API, json=gitea_repo_json())
+    mock_release(aioclient_mock, "1.0.0", None, sha256="a" * 64)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"token": "new"})
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reauth_successful"
+    assert entry.data["token"] == "new"
+    assert aioclient_mock.mock_calls[0][3]["Authorization"] == "token new"
+
+
+async def test_reconfigure_change_token(hass, components_dir, aioclient_mock):
+    entry = make_gitea_entry(hass)
+    result = await entry.start_reconfigure_flow(hass)
+    assert result["step_id"] == "reconfigure"
+    assert result["description_placeholders"]["token_state"] == "✓"
+    assert "old-tok-4711" not in str(result)  # stored token is never sent to the form
+
+    aioclient_mock.get(API, status=403)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"token": "bad"})
+    assert result["errors"] == {"base": "invalid_auth"}
+
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(API, json=gitea_repo_json())
+    mock_release(aioclient_mock, "1.0.0", None, sha256="a" * 64)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"token": "new"})
+    assert result["reason"] == "reconfigure_successful"
+    assert entry.data["token"] == "new"
+
+
+async def test_reconfigure_keep_and_remove_token(hass, components_dir, aioclient_mock):
+    aioclient_mock.get(API, json=gitea_repo_json())
+    mock_release(aioclient_mock, "1.0.0", None, sha256="a" * 64)
+    entry = make_gitea_entry(hass)
+    result = await entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
+    assert result["reason"] == "reconfigure_successful"
+    assert entry.data["token"] == "old-tok-4711"  # empty field keeps it
+
+    result = await entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"remove_token": True})
+    assert result["reason"] == "reconfigure_successful"
+    assert "token" not in entry.data
+
+
+async def test_reconfigure_change_provider(hass, components_dir, aioclient_mock):
+    """Switching the provider re-detects for that provider only; mismatch is shown."""
+    entry = make_gitea_entry(hass, token=None)
+    mock_unknown_server(aioclient_mock)
+    result = await entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"provider": "gitlab"})
+    assert result["errors"] == {"base": "provider_mismatch"}
+    assert entry.data["provider"] == "gitea"
+
+    aioclient_mock.clear_requests()
+    gl_api = f"{BASE}/api/v4/projects/toxic%2Fdemo-integration"
+    aioclient_mock.get(gl_api, json={"id": 3, "path_with_namespace": REPO})
+    aioclient_mock.get(f"{gl_api}/releases", json=[])
+    mock_unknown_server(aioclient_mock)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"provider": "gitlab"})
+    assert result["reason"] == "reconfigure_successful"
+    assert entry.data["provider"] == "gitlab"
+    assert entry.data["base_url"] == BASE
+    assert entry.data["repo_path"] == REPO
+
+
+async def test_reconfigure_repository_not_found(hass, components_dir, aioclient_mock):
+    entry = make_gitea_entry(hass)
+    aioclient_mock.get(API, status=404)
+    result = await entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"remove_token": True})
+    assert result["errors"] == {"base": "repository_not_found"}
+    assert entry.data["token"] == "old-tok-4711"

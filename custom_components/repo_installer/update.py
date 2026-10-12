@@ -10,10 +10,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .actions import async_install_release
-from .const import DOMAIN, NOT_INSTALLED
+from .const import DOMAIN, NOT_INSTALLED, TRANSLATION_KEY
 from .coordinator import RepoInstallerConfigEntry, RepoUpdateCoordinator
 from .installer import UNKNOWN_VERSION, InstallError
 from .providers import RepoError
@@ -33,6 +34,8 @@ class RepoUpdateEntity(CoordinatorEntity[RepoUpdateCoordinator], UpdateEntity):
 
     _attr_has_entity_name = True
     _attr_name = None
+    _attr_translation_key = TRANSLATION_KEY
+    _not_installed_text: str | None = None
     _attr_supported_features = UpdateEntityFeature.INSTALL | UpdateEntityFeature.RELEASE_NOTES
 
     def __init__(self, coordinator: RepoUpdateCoordinator) -> None:
@@ -50,6 +53,22 @@ class RepoUpdateEntity(CoordinatorEntity[RepoUpdateCoordinator], UpdateEntity):
             configuration_url=str(provider.location.web_url),
         )
 
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        # Backend-side translation (server language): HA cannot translate
+        # attribute values like installed_version itself.
+        strings = await async_get_translations(
+            self.hass, self.hass.config.language, "entity", {DOMAIN}
+        )
+        self._not_installed_text = strings.get(
+            f"component.{DOMAIN}.entity.update.{TRANSLATION_KEY}"
+            ".state_attributes.release_summary.state.not_installed"
+        )
+
+    @property
+    def _not_installed(self) -> bool:
+        return self.coordinator.data is not None and self.coordinator.data.installed_version is None
+
     @property
     def available(self) -> bool:
         return super().available and self.coordinator.data is not None
@@ -58,7 +77,13 @@ class RepoUpdateEntity(CoordinatorEntity[RepoUpdateCoordinator], UpdateEntity):
     def installed_version(self) -> str | None:
         if self.coordinator.data is None:
             return None
+        # Empty, not None: None would make the state "unknown", and the frontend
+        # then hides the install button and the entity in Settings → Updates.
         return self.coordinator.data.installed_version or NOT_INSTALLED
+
+    @property
+    def release_summary(self) -> str | None:
+        return self._not_installed_text if self._not_installed else None
 
     @property
     def latest_version(self) -> str | None:
@@ -74,7 +99,12 @@ class RepoUpdateEntity(CoordinatorEntity[RepoUpdateCoordinator], UpdateEntity):
         return is_newer(latest_version, installed_version)
 
     async def async_release_notes(self) -> str | None:
-        return self.coordinator.data.release.body if self.coordinator.data else None
+        if self.coordinator.data is None:
+            return None
+        body = self.coordinator.data.release.body
+        if self._not_installed and self._not_installed_text:
+            return f"**{self._not_installed_text}**\n\n---\n\n{body}"
+        return body
 
     async def async_install(self, version: str | None, backup: bool, **kwargs: Any) -> None:
         data = self.coordinator.data
