@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+import socket
+
 import aiohttp
 import pytest
 import pytest_socket
@@ -30,9 +32,21 @@ pytestmark = pytest.mark.live
 
 DUMMY_SHA = "0" * 64
 
+# captured at import, before any test patches them
+_REAL_GETHOSTBYNAME = socket.gethostbyname
+_REAL_GETHOSTBYNAME_EX = socket.gethostbyname_ex
+
 
 @pytest.fixture(autouse=True)
-def _allow_network(socket_enabled):
+def _allow_network(socket_enabled, monkeypatch):
+    # Newer pytest-homeassistant-custom-component also blocks DNS; these tests
+    # need real name resolution (only here, only with --live).
+    from pytest_homeassistant_custom_component import plugins
+
+    if hasattr(plugins, "_real_getaddrinfo"):
+        monkeypatch.setattr(socket, "getaddrinfo", plugins._real_getaddrinfo)
+        monkeypatch.setattr(socket, "gethostbyname", _REAL_GETHOSTBYNAME)
+        monkeypatch.setattr(socket, "gethostbyname_ex", _REAL_GETHOSTBYNAME_EX)
     pytest_socket.socket_allow_hosts(
         ["127.0.0.1", "api.github.com", "github.com", "release-assets.githubusercontent.com",
          "objects.githubusercontent.com", "gitlab.com"],

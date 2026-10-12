@@ -1,6 +1,8 @@
-# HACS and hassfest validation. Runs on every push and pull request (the
-# Forgejo push mirror counts as push) and weekly, so upstream rule changes
-# show up even without commits. Never writes to the repository.
+# HACS and hassfest validation plus the unit tests. Runs on every push and
+# pull request (the Forgejo push mirror counts as push) and weekly, so
+# upstream rule changes show up even without commits. Never writes to the
+# repository. The release workflow calls it with tests skipped: tests are a
+# visible quality signal, not a release condition.
 name: Validate
 
 on:
@@ -10,6 +12,14 @@ on:
     - cron: "17 4 * * 1"
   workflow_dispatch:
   workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to validate (default: the triggering ref)"
+        type: string
+        default: ""
+      skip_tests:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -31,6 +41,42 @@ jobs:
       # actions/checkout v7.0.1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ${{ inputs.ref }}
           persist-credentials: false
       # home-assistant/actions master, 2026-09-27 (only release 1.0.0 is from 2020)
       - uses: home-assistant/actions/hassfest@06749dd8c0b54f350bc69c8752456cee498808a3
+
+  tests:
+    name: Unit tests (HA ${{ matrix.ha }})
+    if: ${{ !inputs.skip_tests }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # minimum version (hacs.json "homeassistant"), pinned
+          - ha: minimum 2026.2.3
+            python: "3.13"
+            plugin: pytest-homeassistant-custom-component==0.13.316
+          # current stable: latest plugin release, follows HA automatically
+          - ha: current stable
+            python: "3.14"
+            plugin: pytest-homeassistant-custom-component
+    steps:
+      # actions/checkout v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      # actions/setup-python v7.0.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install test requirements
+        env:
+          PLUGIN: ${{ matrix.plugin }}
+        run: python -m pip install "$PLUGIN"
+      - name: Unit tests (live tests are skipped without --live)
+        run: |
+          python -c "import homeassistant.const as c; print('Home Assistant', c.__version__)"
+          python -m pytest -q -p no:cacheprovider

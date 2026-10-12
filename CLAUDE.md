@@ -22,7 +22,7 @@ Gilt für jede Session, ohne Ausnahme:
 7. **Rückmeldung an Tobias nach jedem Release:** nur Version, Kurzliste der Änderungen und die direkte Download-URL des versionierten Assets.
 8. **`dist/` enthält lokal nur die ZIPs des aktuellen Releases** (`dist/` ist in `.gitignore`, `deploy.sh zip` räumt alte ZIPs weg).
 9. **`CHANGELOG.md` vor jedem Release pflegen** (englisch, Keep a Changelog): Abschnitt `## [<version>] - <JJJJ-MM-TT>` mit Added/Changed/Fixed. Der Abschnitt ist die Release-Beschreibung auf GitHub; `scripts/release_meta.py check v<version>` muss grün sein, sonst bricht der GitHub-Workflow ab.
-10. **GitHub ist nur Spiegel** (sobald eingerichtet, siehe `docs/github-mirror.md`): nie direkt auf GitHub committen oder releasen. Der Workflow baut das GitHub-Release aus dem gespiegelten Tag; danach SHA-256 Forgejo gegen GitHub abgleichen – sie müssen identisch sein.
+10. **GitHub ist nur Spiegel** (sobald eingerichtet, siehe `docs/github-mirror.md`): nie direkt auf GitHub committen oder releasen. Der Workflow baut das GitHub-Release aus dem gespiegelten Tag; danach SHA-256 Forgejo gegen GitHub abgleichen – sie müssen identisch sein. Push-Mirror-Token: fine-grained, nur `<GITHUB_USER>/repo_installer`, mit Ablaufdatum, Rechte **Contents: Read and write** und **Workflows: Read and write** (ohne Workflows lehnt GitHub Pushes mit Dateien unter `.github/workflows/` ab). Kommt kein Tag-Ereignis an (mehr als drei Tags in einem Push), Release-Workflow per *Run workflow* mit `tag` starten.
 
 ## Release-Format, das der Installer von Fremd-Repos erwartet
 
@@ -39,10 +39,10 @@ Vorlage für jede eigene Integration, die über den Repo Installer verteilt wird
 ## Store-Vorbereitung (HACS) und Platzhalter
 
 - `hacs.json`: ohne `zip_release`, mit `hide_default_branch`. HACS installiert damit den getaggten Stand von `custom_components/repo_installer/`. Grund: HACS entpackt ein `zip_release`-Asset direkt nach `custom_components/<domain>/` (Dateien im ZIP-Wurzelverzeichnis, so auch `hacs.zip`), der Installer verlangt `<domain>/manifest.json` – beides in einem inhaltsgleichen Asset geht nicht.
-- Brand-Assets gehören nach `custom_components/repo_installer/brand/` (HACS-Prüfung und HA ab 2026.3), nicht ins Repo-Root.
-- Platzhalter `GITHUB_USER`, `SECURITY_CONTACT`, `COPYRIGHT_HOLDER` (im Text in spitzen Klammern) sind zentral in `scripts/placeholders.py` definiert: `list` zeigt alle Fundstellen, `apply NAME=wert …` ersetzt sie.
-- Lizenz liegt als Entwurf in `docs/license-drafts/`, erst nach Entscheidung als `LICENSE` ins Root.
-- Store-Antrag: `docs/hacs-default-submission.md`. GitHub-Workflows: `.github/workflows/` (validate: HACS + hassfest; release: Tag `v*`).
+- Brand-Assets liegen in `custom_components/repo_installer/brand/` (HACS-Prüfung und HA ab 2026.3), nicht im Repo-Root. Erzeugt mit `scripts/draw_icon.py` (Entwicklerwerkzeug, braucht Pillow).
+- Platzhalter `GITHUB_USER` (im Text in spitzen Klammern, zugleich Copyright-Inhaber in `LICENSE`) ist zentral in `scripts/placeholders.py` definiert: `list` zeigt alle Fundstellen, `apply GITHUB_USER=<name>` ersetzt sie. Sicherheitsmeldungen laufen nur über GitHubs Private vulnerability reporting, keine Mailadresse.
+- Lizenz: MIT (`LICENSE`).
+- Store-Antrag: `docs/hacs-default-submission.md`. GitHub-Workflows: `.github/workflows/` (validate: HACS, hassfest, Unit-Tests gegen HA 2026.2.3 und aktuelles HA; release: Tag `v*` oder manuell mit `tag`, Unit-Tests sind dort keine Bedingung).
 - hassfest lokal (ohne Docker): HA-Core-Tag passend zum venv sparse auschecken (nur `script/`), dann im Checkout `PATH=<dir mit ruff>:$PATH /home/dev/linknlink-local/.venv-ha/bin/python -m script.hassfest --action validate --integration-path <kopie>/custom_components/repo_installer` (Kopie ohne `__pycache__`).
 
 ## Arbeitsumgebung (Host `dev`)
@@ -52,7 +52,8 @@ Vorlage für jede eigene Integration, die über den Repo Installer verteilt wird
 - HA-Tests (HA 2026.2.3, venv aus linknlink-local):
   - Unit: `cd /home/dev/repo_installer && /home/dev/linknlink-local/.venv-ha/bin/pytest -q -p no:cacheprovider` (Live-Tests werden übersprungen)
   - Live: dieselbe Zeile mit `--live -m live`. Alle Live-Tests (Marker `live`) lesen nur und installieren nur in Temp-Verzeichnisse.
-  - Vor einem Release laufen beide; das Testergebnis in der Release-Beschreibung nennt Unit und Live getrennt.
+  - Gegen aktuelles HA zusätzlich: `uv venv --python 3.14 <dir> && VIRTUAL_ENV=<dir> uv pip install pytest-homeassistant-custom-component`, dann `<dir>/bin/pytest -q -p no:cacheprovider` (mit und ohne `--live -m live`). Ab Plugin 0.13.37x blockiert das Plugin auch DNS; `tests/test_live_external.py` stellt dafür die echten Resolver nur für sich wieder her.
+  - Vor einem Release laufen alle; das Testergebnis in der Release-Beschreibung nennt Mindest- und aktuelle HA-Version sowie Unit und Live getrennt.
   - `tests/test_live.py`: `toxic/linknlink-local` muss als Forgejo/Gitea erkannt werden, das aktuelle linknlink-Release ist latest. Bei einem neuen linknlink-Release `EXPECTED`/`EXPECTED_SHA` dort nachziehen.
   - `tests/test_live_external.py`: `hacs/integration` (GitHub) und `gitlab-org/cli` (gitlab.com): Erkennung, latest, Asset-URL, Download über die erlaubten Hosts (gegen Dummy-SHA, muss mit „mismatch“ scheitern), Ablehnung ohne SHA-256 ohne Reste. GitHub ohne Token: 60 Anfragen/Stunde.
 - Forgejo-API: `http://172.16.1.36:3000/api/v1/repos/toxic/repo_installer`. Token über `git credential fill` (host `172.16.1.36:3000`), nie ausgeben. Das Token darf keine Repos anlegen.

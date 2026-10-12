@@ -95,9 +95,7 @@ def _png_size(path: Path) -> tuple[int, int]:
 
 
 def test_brand_assets():
-    brand = INTEGRATION / "brand"
-    if not brand.exists():
-        pytest.skip("brand assets pending approval (B5)")
+    brand = INTEGRATION / "brand"  # HACS brands check and HA >= 2026.3 look here
     assert _png_size(brand / "icon.png") == (256, 256)
     assert _png_size(brand / "icon@2x.png") == (512, 512)
     if (brand / "logo.png").exists():

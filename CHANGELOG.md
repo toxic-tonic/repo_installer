@@ -8,14 +8,20 @@ notes of that version; the release adds the `SHA-256:` line.
 ## [0.2.0] - unreleased
 
 ### Added
-- Store preparation: `hacs.json`, brand assets, English README (German
-  short version in `README.de.md`), `SECURITY.md`, issue templates.
+- Store preparation: `hacs.json` (HACS installs the tagged source,
+  minimum Home Assistant 2026.2.0), English README (German short version
+  in `README.de.md`), issue templates, MIT license.
+- Brand icon in `custom_components/repo_installer/brand/` (shown by Home
+  Assistant 2026.3 and later, used by HACS).
+- `SECURITY.md`: vulnerabilities are reported via GitHub's private
+  vulnerability reporting.
 - Every release ships two identical ZIP assets: `repo_installer.zip`
   (fixed name for HACS) and `repo_installer-<version>-<hash>.zip`.
 - Deterministic ZIP build (`scripts/build_zip.py`): same commit, same
   SHA-256 on Forgejo and GitHub.
-- GitHub workflows for validation (HACS, hassfest) and releases built
-  from this changelog.
+- GitHub workflows: validation (HACS, hassfest, unit tests against the
+  minimum and the current Home Assistant) and releases built from this
+  changelog, started by a tag or manually for an existing tag.
 
 ### Changed
 - Releases with several ZIP assets: the asset whose name contains the
@@ -23,6 +29,11 @@ notes of that version; the release adds the `SHA-256:` line.
   matches the SHA-256 in the release notes. Ambiguous releases are
   rejected as before.
 - `manifest.json`: GitHub documentation and issue tracker, codeowners.
+- Example URLs in the setup dialog moved into placeholders (hassfest).
+
+### Fixed
+- Live tests work with the current Home Assistant test plugin, which
+  also blocks DNS resolution.
 
 ## [0.1.1] - 2026-10-12
 

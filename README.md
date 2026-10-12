@@ -131,3 +131,7 @@ and then mirrored back, so they are closed rather than merged on GitHub.
 
 See [CHANGELOG.md](CHANGELOG.md) for changes and [SECURITY.md](SECURITY.md)
 for reporting vulnerabilities.
+
+## License
+
+[MIT](LICENSE)

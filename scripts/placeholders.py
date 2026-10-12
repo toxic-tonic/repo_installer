@@ -3,10 +3,10 @@
 the GitHub mirror goes public (stdlib only).
 
     scripts/placeholders.py list
-    scripts/placeholders.py apply GITHUB_USER=<name> SECURITY_CONTACT=<mail> COPYRIGHT_HOLDER="<name>"
+    scripts/placeholders.py apply GITHUB_USER=<name>
 
 `list` prints every occurrence (file:line). `apply` replaces them in all
-git-tracked text files; values may be given for a subset. Review the diff,
+git-tracked text files. Review the diff,
 run the tests, commit.
 """
 
@@ -21,9 +21,8 @@ ROOT = Path(__file__).resolve().parent.parent
 
 # name -> meaning; written as <NAME> in the files
 PLACEHOLDERS = {
-    "GITHUB_USER": "GitHub user/organisation of the mirror, repo <GITHUB_USER>/repo_installer",
-    "SECURITY_CONTACT": "private e-mail address for security reports (SECURITY.md)",
-    "COPYRIGHT_HOLDER": "copyright holder in the license",
+    # also the copyright holder in LICENSE (decision 2026-10-12)
+    "GITHUB_USER": "GitHub user of the mirror, repo <GITHUB_USER>/repo_installer",
 }
 
 TOKEN_RE = re.compile(r"<([A-Z][A-Z0-9_]{2,})>")

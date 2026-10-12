@@ -11,10 +11,10 @@ Only the latest release receives fixes. Please update before reporting.
 
 ## Reporting a vulnerability
 
-Please **do not open a public issue** for security problems. Report them
-privately by e-mail to `<SECURITY_CONTACT>` or via GitHub's
-"Report a vulnerability" button (private security advisory) on
-`https://github.com/<GITHUB_USER>/repo_installer/security`.
+Please **do not open a public issue** for security problems. Use GitHub's
+**private vulnerability reporting** instead: on
+`https://github.com/<GITHUB_USER>/repo_installer` open the **Security** tab
+and click **Report a vulnerability**. Only the maintainer can see the report.
 
 Include the installer version, the Home Assistant version, the Git
 provider involved and steps to reproduce. You will get an answer as time

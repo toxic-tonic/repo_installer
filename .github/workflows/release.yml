@@ -2,23 +2,37 @@
 # push mirror. Same build as on Forgejo (scripts/build_zip.py), so both
 # releases carry the same SHA-256. Never commits or pushes: the mirror owns
 # the repository content.
+#
+# Manual start (Actions → Release → Run workflow, tag e.g. v0.2.0) catches up
+# when the push created no tag event; GitHub sends none when more than three
+# tags are pushed at once, e.g. on the first mirror sync. Same checks either
+# way. Tags whose commit has no release workflow (v0.1.0, v0.1.1) are refused.
 name: Release
 
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to release, e.g. v0.2.0
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref_name }}
+  group: release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   validate:
     uses: ./.github/workflows/validate.yml
+    with:
+      ref: refs/tags/${{ inputs.tag || github.ref_name }}
+      skip_tests: true
 
   release:
     name: GitHub release
@@ -28,12 +42,24 @@ jobs:
       contents: write  # create the release, nothing else
     env:
       GH_TOKEN: ${{ github.token }}
-      TAG: ${{ github.ref_name }}
+      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       # actions/checkout v7.0.1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: refs/tags/${{ inputs.tag || github.ref_name }}
           persist-credentials: false
+
+      - name: Tag must carry this release workflow
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9] ]]; then
+            echo "::error::'$TAG' is not a version tag (v<version>)."
+            exit 1
+          fi
+          if [[ ! -f .github/workflows/release.yml || ! -f scripts/build_zip.py ]]; then
+            echo "::error::$TAG predates the GitHub release workflow and is not rebuilt."
+            exit 1
+          fi
 
       - name: Check tag against manifest.json and CHANGELOG.md
         id: meta

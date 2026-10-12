@@ -15,8 +15,8 @@ Stand der Prüfung: 2026-10-12, Quellen: hacs.xyz/docs/publish/start, …/integr
 | `hacs.json` im Root mit `name` | publish/start | erledigt |
 | Eine Integration unter `custom_components/<domain>/` | publish/integration | erledigt |
 | Manifest: domain, documentation, issue_tracker, codeowners, name, version | publish/integration | erledigt (Platzhalter ersetzen) |
-| Brand-Assets: `custom_components/repo_installer/brand/icon.png` | publish/integration, include (Check „brands“) | **offen** (Entwurf wartet auf Freigabe) |
-| HACS-Action grün, **ohne** `ignore` | include, PR-Vorlage | offen (läuft nach Spiegelung; rot bis Icon da ist) |
+| Brand-Assets: `custom_components/repo_installer/brand/icon.png` | publish/integration, include (Check „brands“) | erledigt (`icon.png` 256 px, `icon@2x.png` 512 px) |
+| HACS-Action grün, **ohne** `ignore` | include, PR-Vorlage | offen (läuft erst nach Spiegelung; Repo-Prüfungen brauchen Beschreibung, Topics, Issues) |
 | hassfest-Action grün | include | lokal grün, auf GitHub offen |
 | Mindestens ein **echtes Release** (nicht nur Tag), erstellt **nach** grünen Actions | include, PR-Vorlage | offen |
 | PR aus persönlichem Account (editierbar), Branch von `master` | include | beim Antrag |
